@@ -13,7 +13,7 @@ module CsvReaderImpl : CsvReader = struct
         match row with
         | [ coordinate_as_str ] ->
             let coord = float_of_string coordinate_as_str in
-            Point1D.create coord
+            Point1D.create [ coord ]
         | _ -> failwith "Invalid CSV format")
       csv
 end
