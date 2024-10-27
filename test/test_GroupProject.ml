@@ -22,8 +22,12 @@ let test_euclidean_distance _ =
   assert_equal dist 14.0 ~printer:string_of_float
 
 let test_read_points _ =
-  let points = CsvReaderImpl.read_points "../data/test_data.csv" in
-  assert_equal (List.length points) 3
+  let points = CsvReaderImpl.read_points_1d "../data/test_data.csv" in
+  assert_equal (List.length points) 3;
+  let points = CsvReaderImpl.read_points_2d "../data/test_data_2d.csv" in
+  assert_equal (List.length points) 2;
+  let points = CsvReaderImpl.read_points_3d "../data/test_data_3d.csv" in
+  assert_equal (List.length points) 5
 
 let rec test_cases =
   [
