@@ -84,32 +84,35 @@ module Dummy3D = MakeDummyPt (Point3D)
 (** [distances p_list dim] is the list of distance(s) between the points [p] in
     csv and a dummy point *)
 let distances p dim =
-  let dp1 = Dummy1D.dummy_pt dim in
-  let dp2 = Dummy2D.dummy_pt dim in
-  let dp3 = Dummy3D.dummy_pt dim in
   match String.uppercase_ascii dim with
   | "1D" -> begin
       let p_list = CsvReaderImpl.read_points_1d p in
+      let dp1 = Dummy1D.dummy_pt dim in
       List.iter
         (fun x ->
-          Printf.printf "%s\n"
-            (string_of_float (Point1D.euclidean_distance x dp1)))
+          Printf.printf "The euclidian distance between %s and %s is: %5f\n"
+            (Point1D.to_string x) (Point1D.to_string dp1)
+            (Point1D.euclidean_distance x dp1))
         p_list
     end
   | "2D" -> begin
       let p_list = CsvReaderImpl.read_points_2d p in
+      let dp2 = Dummy2D.dummy_pt dim in
       List.iter
         (fun x ->
-          Printf.printf "%s\n"
-            (string_of_float (Point2D.euclidean_distance x dp2)))
+          Printf.printf "The euclidian distance between %s and %s is: %5f\n"
+            (Point2D.to_string x) (Point2D.to_string dp2)
+            (Point2D.euclidean_distance x dp2))
         p_list
     end
   | "3D" -> begin
       let p_list = CsvReaderImpl.read_points_3d p in
+      let dp3 = Dummy3D.dummy_pt dim in
       List.iter
         (fun x ->
-          Printf.printf "%s\n"
-            (string_of_float (Point3D.euclidean_distance x dp3)))
+          Printf.printf "The euclidian distance between %s and %s is: %5f\n"
+            (Point3D.to_string x) (Point3D.to_string dp3)
+            (Point3D.euclidean_distance x dp3))
         p_list
     end
   | _ -> failwith "Bad Points CSV"
@@ -127,10 +130,13 @@ let print_distances points dim =
 (** [analyze_args input len] is the Printf statement corresponding to different
     aspects of [input] *)
 let analyze_args input len =
-  if len = 1 then
+  if len = 1 then begin
     Printf.printf
       "You have not provided a csv file with points, so a default csv is being \
-       used with the following points: "
+       used with the following points: ";
+    print_points "./data/test_data_2d.csv" "2D";
+    print_distances "./data/test_data_2d.csv" "2D"
+  end
   else begin
     let arg1 = input.(1) in
     let arg2 = input.(2) in
@@ -158,4 +164,4 @@ let _ =
   else
     try analyze_args input len
     with Sys_error _ ->
-      Printf.printf "Make sure your argument(s) are valid file path(s)"
+      Printf.printf "\nMake sure your argument(s) are valid file path(s)"
