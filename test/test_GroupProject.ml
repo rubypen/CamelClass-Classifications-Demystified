@@ -1,6 +1,7 @@
 open OUnit2
 open GroupProject.Point
 open GroupProject.Csvreader
+open GroupProject.Kmeans
 
 let test_distance _ =
   (* 1D tests*)
@@ -37,10 +38,20 @@ let test_read_points _ =
   let points = CsvReaderImpl.read_points_3d "../data/test_data_3d.csv" in
   assert_equal (List.length points) 5
 
+module KMeans1D = MakeKMeans (Point1D)
+
+let test_kmeans_1d _ =
+  let points =
+    [ Point1D.create [ 1.0 ]; Point1D.create [ 2.0 ]; Point1D.create [ 9.0 ] ]
+  in
+  let clusters = KMeans1D.initialize_clusters 2 points in
+  assert_equal (List.length clusters) 2
+
 let rec test_cases =
   [
     ("Test Points" >:: fun _ -> test_distance ());
     ("Test CsvReader" >:: fun _ -> test_read_points ());
+    ("Test KMeans 1D" >:: fun _ -> test_kmeans_1d ());
   ]
 
 let () = run_test_tt_main ("Point Tests" >::: test_cases)
