@@ -15,6 +15,10 @@ module type Point = sig
   val euclidean_distance : t -> t -> float
   (** [euclidean_distance p1 p2] is the Euclidean distance between points [p1]
       and [p2]. *)
+
+  val manhattan_distance : t -> t -> float
+  (** [manahattan_distance p1 p2] is the Manhattan distance between points [p1]
+      and [p2]. *)
 end
 
 (** Module containing helper methods for the Point implementation modules*)
@@ -39,6 +43,7 @@ module Point1D : Point = struct
   let get_coordinate (p : t) = [ p ]
   let euclidean_distance (p1 : t) (p2 : t) : float = abs_float (p1 -. p2)
   let to_string p = Printf.sprintf "(%s)" (str p)
+  let manhattan_distance (p1 : t) (p2 : t) : float = abs_float (p1 -. p2)
 end
 
 module Point2D : Point = struct
@@ -59,6 +64,11 @@ module Point2D : Point = struct
     sqrt (((x2 -. x1) ** 2.0) +. ((y2 -. y1) ** 2.0))
 
   let to_string (x, y) = Printf.sprintf "(%s, %s)" (str x) (str y)
+
+  let manhattan_distance (p1 : t) (p2 : t) : float =
+    let x1, y1 = p1 in
+    let x2, y2 = p2 in
+    abs_float (x2 -. x1) +. abs_float (y2 -. y1)
 end
 
 module Point3D : Point = struct
@@ -80,4 +90,9 @@ module Point3D : Point = struct
 
   let to_string (x, y, z) =
     Printf.sprintf "(%s, %s, %s)" (str x) (str y) (str z)
+
+  let manhattan_distance (p1 : t) (p2 : t) : float =
+    let x1, y1, z1 = p1 in
+    let x2, y2, z2 = p2 in
+    abs_float (x2 -. x1) +. abs_float (y2 -. y1) +. abs_float (z2 -. z1)
 end
