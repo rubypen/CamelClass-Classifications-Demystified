@@ -8,7 +8,7 @@ let test_distance _ =
   let p1 = Point1D.create [ 3.0 ] in
   let p2 = Point1D.create [ 7.5 ] in
   let dist_euc = Point1D.euclidean_distance p1 p2 in
-  let dist_man = Point1D.manahattan_distance p1 p2 in
+  let dist_man = Point1D.manhattan_distance p1 p2 in
   assert_equal dist_euc 4.5 ~printer:string_of_float;
   assert_equal dist_man 4.5 ~printer:string_of_float;
 
@@ -18,7 +18,7 @@ let test_distance _ =
   let p1 = Point2D.create [ 1.0; 2.0 ] in
   let p2 = Point2D.create [ 4.0; 6.0 ] in
   let dist_euc = Point2D.euclidean_distance p1 p2 in
-  let dist_man = Point2D.manahattan_distance p1 p2 in
+  let dist_man = Point2D.manhattan_distance p1 p2 in
   assert_equal dist_euc 5.0 ~printer:string_of_float;
   assert_equal dist_man 7.0 ~printer:string_of_float;
 
@@ -26,7 +26,7 @@ let test_distance _ =
   let p1 = Point3D.create [ 6.0; 15.0; 7.0 ] in
   let p2 = Point3D.create [ 2.0; 3.0; 1.0 ] in
   let dist_euc = Point3D.euclidean_distance p1 p2 in
-  let dist_man = Point3D.manahattan_distance p1 p2 in
+  let dist_man = Point3D.manhattan_distance p1 p2 in
   assert_equal dist_euc 14.0 ~printer:string_of_float;
   assert_equal dist_man 22.0 ~printer:string_of_float
 
