@@ -44,11 +44,12 @@ let print_points p d =
 module MakeDummyPt (P : Point) = struct
   let dummy_pt dim =
     Printf.printf
-      "Now you will specify a point to calculate distances from each point in \
+      "\n\
+       Now you will specify a point to calculate distances from each point in \
        your CSV file.\n";
 
     let prompt_coordinate name =
-      Printf.printf "Please specify the %s coordinate as a decimal number: "
+      Printf.printf "\nPlease specify the %s coordinate as a decimal number: "
         name;
       float_of_string (read_line ())
     in
@@ -69,7 +70,7 @@ module MakeDummyPt (P : Point) = struct
       in
       point
     with Failure _ -> (
-      Printf.printf "Invalid input; using a default dummy point.\n";
+      Printf.printf "\nInvalid input: A default dummy input will be used\n\n";
       match String.uppercase_ascii dim with
       | "1D" -> P.create [ 1.0 ]
       | "2D" -> P.create [ 1.0; 2.0 ]
@@ -118,8 +119,7 @@ let distances p dim =
   | _ -> failwith "Bad Points CSV"
 
 (** [get_distance] prints the distance(s) between all of the points i in i = 1
-    ... n and j in j = 1 ... m in their file based on a distance metric the user
-    chooses *)
+    ... n and a dummy point based on a distance metric the user chooses *)
 let print_distances points dim =
   Printf.printf "What distance metric would you like to use: [Euclidian] >> ";
   let distance_metric = String.lowercase_ascii (read_line ()) in
@@ -148,9 +148,9 @@ let analyze_args input len =
 
 (** [_] is the Printf statement corresponding to different aspects of user
     input. If a user provided a csv file, we print a user-friendly output
-    describing the euclidian distance between all of the points i in i = 1 ... n
-    and j in j = 1 ... m in their file. If a csv is not provided, a default csv
-    file is evaluated. #FIX THIS COMMENT *)
+    describing the distance between all of the points i in i = 1 ... n in their
+    file and a dummy point. If a csv is not provided, a default csv file is
+    evaluated. *)
 let _ =
   let num_of_args = 2 in
   let input = Sys.argv in
