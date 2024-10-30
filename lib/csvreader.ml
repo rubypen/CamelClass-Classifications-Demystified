@@ -1,10 +1,19 @@
 open Point
 open Csv
 
+(* Module type signature for CsvReader *)
 module type CsvReader = sig
   val read_points_1d : string -> Point1D.t list
+  (** [read_points_1d str] creates a list of points from csv file with a name
+      [str]. Requires: [lst] is a name of csv file. *)
+
   val read_points_2d : string -> Point2D.t list
+  (** [read_points_2d str] creates a list of points from csv file with a name
+      [str]. Requires: [lst] is a name of csv file. *)
+
   val read_points_3d : string -> Point3D.t list
+  (** [read_points_3d str] creates a list of points from csv file with a name
+      [str]. Requires: [lst] is a name of csv file. *)
 end
 
 module CsvReaderImpl : CsvReader = struct
