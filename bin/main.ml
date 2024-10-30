@@ -142,7 +142,7 @@ let distances p dim dist_metric =
     end
   | _ -> failwith "Bad Points CSV"
 
-(** [get_distance] prints the distance(s) between all of the points i in i = 1
+(** [print_distance] prints the distance(s) between all of the points i in i = 1
     ... n and a dummy point based on a distance metric the user chooses *)
 let print_distances points dim =
   Printf.printf
