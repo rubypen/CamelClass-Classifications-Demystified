@@ -4,21 +4,23 @@ module type Point = sig
   (** The type of a point. *)
 
   val create : float list -> t
-  (** [create lst] creates a point with the coordinates in [lst]. *)
+  (** [create lst] creates a point with the coordinates in [lst]. Requires:
+      [lst] is non-empty. *)
 
   val get_coordinate : t -> float list
   (** [get_coordinate p] is the coordinate of the point [p]. *)
 
   val to_string : t -> string
-  (** [to_string p] is the string representation of [p] *)
+  (** [to_string p] is the string representation of [p]. Requires: [p] contains
+      only digits. *)
 
   val euclidean_distance : t -> t -> float
   (** [euclidean_distance p1 p2] is the Euclidean distance between points [p1]
-      and [p2]. *)
+      and [p2]. Requires: [p1] and [p2] have the same dimensions. *)
 
   val manhattan_distance : t -> t -> float
   (** [manahattan_distance p1 p2] is the Manhattan distance between points [p1]
-      and [p2]. *)
+      and [p2]. Requires: [p1] and [p2] have the same dimensions. *)
 end
 
 (** Module containing helper methods for the Point implementation modules*)
