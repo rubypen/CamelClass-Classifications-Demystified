@@ -29,7 +29,12 @@ module PointHelpers = struct
     if no_decimal_places f then string_of_float f ^ "0" else string_of_float f
 end
 
-(* Implementation for 1 Dimensional Point *)
+(* AF: A 1D point represented as a list containing a single float, where the
+   value is the point's position on a number line. Ex.: [(3.0)] is represented
+   by [[3.0]] *)
+(* RI: The list passed for creation of a point must contain exactly one element.
+   The coordinate of t must be finite. *)
+
 module Point1D : Point = struct
   include PointHelpers
 
@@ -45,6 +50,12 @@ module Point1D : Point = struct
   let to_string p = Printf.sprintf "(%s)" (str p)
   let manhattan_distance (p1 : t) (p2 : t) : float = abs_float (p1 -. p2)
 end
+
+(* AF: A 2D point represented as a list containing a pair of floats (x, y),
+   where x and y are the point's coordinates in the Cartesian plane. Ex.: [(3.0,
+   4.0)] is represented by [[3.0; 4.0]] *)
+(* RI: The list passed for creation of a point must contain exactly two
+   elements. Both x and y must be finite. *)
 
 module Point2D : Point = struct
   include PointHelpers
@@ -70,6 +81,13 @@ module Point2D : Point = struct
     let x2, y2 = p2 in
     abs_float (x2 -. x1) +. abs_float (y2 -. y1)
 end
+
+(* Point3D Module *)
+(* AF: A 3D point represented as a list containing a triple of floats (x, y, z),
+   where x, y, and z are the point's coordinates in the 3D space. Ex.: [(3.0,
+   4.0, 5.0)] is represented by [[3.0; 4.0; 5.0]] *)
+(* RI: The list passed for creation of a point must contain exactly three
+   elements. All of x, y, and z must be finite. *)
 
 module Point3D : Point = struct
   include PointHelpers
