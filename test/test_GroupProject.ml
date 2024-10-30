@@ -51,7 +51,7 @@ let test_read_points _ =
     [ Point1D.create [ 5.4 ]; Point1D.create [ 3.7 ]; Point1D.create [ 1.1 ] ]
     points
     ~printer:(fun x ->
-      "[" ^ list_to_string (List.map PointD.to_string x) ^ "]");
+      "[" ^ list_to_string (List.map Point1D.to_string x) ^ "]");
   let points = CsvReaderImpl.read_points_2d "../data/test_data_2d.csv" in
   assert_equal (List.length points) 2;
   assert_equal

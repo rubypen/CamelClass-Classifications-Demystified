@@ -89,10 +89,10 @@ let distances p dim dist_metric =
   | "1D" -> begin
       let p_list = CsvReaderImpl.read_points_1d p in
       let dp1 = Dummy1D.dummy_pt dim in
-      if dist_metric = "euclidian" then
+      if dist_metric = "euclidean" then
         List.iter
           (fun x ->
-            Printf.printf "The euclidian distance between %s and %s is: %5f\n"
+            Printf.printf "The euclidean distance between %s and %s is: %5f\n"
               (Point1D.to_string x) (Point1D.to_string dp1)
               (Point1D.euclidean_distance x dp1))
           p_list
@@ -107,10 +107,10 @@ let distances p dim dist_metric =
   | "2D" -> begin
       let p_list = CsvReaderImpl.read_points_2d p in
       let dp2 = Dummy2D.dummy_pt dim in
-      if dist_metric = "euclidian" then
+      if dist_metric = "euclidean" then
         List.iter
           (fun x ->
-            Printf.printf "The euclidian distance between %s and %s is: %5f\n"
+            Printf.printf "The euclidean distance between %s and %s is: %5f\n"
               (Point2D.to_string x) (Point2D.to_string dp2)
               (Point2D.euclidean_distance x dp2))
           p_list
@@ -125,10 +125,10 @@ let distances p dim dist_metric =
   | "3D" -> begin
       let p_list = CsvReaderImpl.read_points_3d p in
       let dp3 = Dummy3D.dummy_pt dim in
-      if dist_metric = "euclidian" then
+      if dist_metric = "euclidean" then
         List.iter
           (fun x ->
-            Printf.printf "The euclidian distance between %s and %s is: %5f\n"
+            Printf.printf "The euclidean distance between %s and %s is: %5f\n"
               (Point3D.to_string x) (Point3D.to_string dp3)
               (Point3D.euclidean_distance x dp3))
           p_list
@@ -146,10 +146,10 @@ let distances p dim dist_metric =
     ... n and a dummy point based on a distance metric the user chooses *)
 let print_distances points dim =
   Printf.printf
-    "What distance metric would you like to use: [Euclidian] or [Manhattan]>> ";
+    "What distance metric would you like to use: [Euclidean] or [Manhattan]>> ";
   let distance_metric = String.lowercase_ascii (read_line ()) in
   match distance_metric with
-  | "euclidian" -> distances points dim "euclidian"
+  | "euclidean" -> distances points dim "euclidean"
   | "manhattan" -> distances points dim "manhattan"
   | _ -> Printf.printf "The metric you have provided is invalid\n"
 
