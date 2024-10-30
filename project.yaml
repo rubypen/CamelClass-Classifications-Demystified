@@ -19,12 +19,12 @@ pm:
 # Gallery entry is public.
 publish: true
 # Title.
-title: " K-Means Classification Visualization in OCaml"
+title: "CamelClass: Classification Demystified"
 # Cornell Github link.
 git-repo: "https://github.coecis.cornell.edu/ks2469/Ocaml_3110_GP"
 # Demo video.
 demo-video-url: "video link"
-# Write a short, attention-grabbing description of your project.
+# Project Description.
 desc: >
   Our project is an interactive K-Means Classification Visualizer. It supports
   K-means for points in 1D, 2D, and 3D. The interface allows users to offer a
