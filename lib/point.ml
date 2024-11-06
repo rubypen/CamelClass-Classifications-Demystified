@@ -23,7 +23,7 @@ module type Point = sig
       and [p2]. Requires: [p1] and [p2] have the same dimensions. *)
 end
 
-(** Module containing helper methods for the Point implementation modules*)
+(** Module containing helper methods for the Point implementation modules *)
 module PointHelpers = struct
   let no_decimal_places f = int_of_float (f *. 10.) mod 10 = 0
 
