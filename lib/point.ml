@@ -36,9 +36,9 @@ module Point1D : Point = struct
 
   (* AF: The float [t] represents a point in 1 dimensional space located in a 
    point in space where we have x axis and the following condition is satisfied 
-   [x=a&]. Ex.: point on x axis at value 3.0 is represented by [3.0] *)
+   [x=a]. Ex.: point on x axis at value 3.0 is represented by [3.0] *)
   (* RI: The list passed for creation of a point must contain exactly one element.
-     The coordinate of t must be finite float. *)
+     The coordinate of t must be a finite float. *)
   type t = float
 
   let create p =
