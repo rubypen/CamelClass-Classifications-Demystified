@@ -13,6 +13,14 @@ type t = {
   coordinates : float list;
 }
 
+(* AF: the reference [{n; [a1, a2, ..., an]}] represents a point in n
+   dimensional space located in a point in space where we have x1, x2, ... xn
+   axis and the following condition is satisfied [x1=a1 && x2=a2 && ... xn=an].
+   Ex.: a point with coordinates [x=3.0, y=4.0, z=5.0] is represented by [3;
+   [3.0, 4.0, 5.0]] *)
+(* RI: The list passed for creation of a point must contain exactly [n]
+   elements. These elements must be finite floats. *)
+
 let create size lst =
   if size != List.length lst then failwith "ND" else { size; coordinates = lst }
 
@@ -46,10 +54,3 @@ let manhattan_distance (p1 : t) (p2 : t) : float =
       +. !distance
   done;
   !distance
-
-(* AF: the tuple [{a,b,c}] represents a point in 3 dimensional space located in
-   a point in space where we have x, y, and z axis and the following condition
-   is satisfied [x=a && y=b && z=c]. Ex.: a point with coordinates [x=3.0,
-   y=4.0, z=5.0] is represented by [(3.0, 4.0, 5.0)] *)
-(* RI: The list passed for creation of a point must contain exactly three
-   elements. These elements must be finite floats. *)
