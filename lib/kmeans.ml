@@ -1,6 +1,15 @@
 open Point
 
+let check_same_dimension points =
+  match points with
+  | [] -> true (* empty list is considered valid *)
+  | first :: rest ->
+      let dim = List.length (get_coordinates first) in
+      List.for_all (fun p -> List.length (get_coordinates p) = dim) rest
+
 let initialize_clusters k points =
+  if not (check_same_dimension points) then
+    invalid_arg "All points must have the same dimension";
   Random.self_init ();
   let n = List.length points in
   let rec pick_random_points k selected_points =
@@ -15,6 +24,8 @@ let initialize_clusters k points =
   pick_random_points k []
 
 let assign_points points clusters =
+  if not (check_same_dimension points) then
+    invalid_arg "All points must have the same dimension";
   List.map
     (fun c ->
       let assigned_points =
@@ -33,6 +44,8 @@ let update_centroids assignments =
   List.map
     (fun (cluster, points) ->
       if points = [] then cluster
+      else if not (check_same_dimension (cluster :: points)) then
+        invalid_arg "All points in cluster must have the same dimension"
       else
         let coord_lists = List.map get_coordinates points in
         let coord_sums =
