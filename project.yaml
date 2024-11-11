@@ -23,7 +23,7 @@ title: "CamelClass: Classification Demystified"
 # Cornell Github link.
 git-repo: "https://github.coecis.cornell.edu/ks2469/Ocaml_3110_GP"
 # Demo video.
-demo-video-url: "video link"
+demo-video-url: "https://youtu.be/zGEYz7frj0E"
 # Project Description.
 desc: >
   Our project is an interactive K-Means Classification Visualizer. It supports

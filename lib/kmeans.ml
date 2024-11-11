@@ -8,20 +8,24 @@ let check_same_dimension points =
       List.for_all (fun p -> List.length (get_coordinates p) = dim) rest
 
 let initialize_clusters k points =
-  if not (check_same_dimension points) then
-    invalid_arg "All points must have the same dimension";
-  Random.self_init ();
-  let n = List.length points in
-  let rec pick_random_points k selected_points =
-    if k = 0 then selected_points
-    else
-      let rand_index = Random.int n in
-      let point = List.nth points rand_index in
-      if List.mem point selected_points then
-        pick_random_points k selected_points
-      else pick_random_points (k - 1) (point :: selected_points)
-  in
-  pick_random_points k []
+  if k <= 0 then invalid_arg "k must be positive"
+  else if points = [] then invalid_arg "Points list is empty"
+  else if k > List.length points then
+    invalid_arg "k cannot be larger than number of points"
+  else if not (check_same_dimension points) then
+    invalid_arg "All points must have the same dimension"
+  else begin
+    (* Fisher-Yates shuffle used to select k random points *)
+    let arr = Array.of_list points in
+    let n = Array.length arr in
+    for i = n - 1 downto n - k do
+      let j = Random.int (i + 1) in
+      let temp = arr.(i) in
+      arr.(i) <- arr.(j);
+      arr.(j) <- temp
+    done;
+    Array.to_list (Array.sub arr (n - k) k)
+  end
 
 let assign_points points clusters =
   if not (check_same_dimension points) then

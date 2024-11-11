@@ -1,6 +1,7 @@
 open OUnit2
 open GroupProject.Point
 open GroupProject.Csvreader
+open GroupProject.Kmeans
 
 (** [list_to_string lst] creates a string with the elements of [lst] separated
     by semicolon. *)
@@ -82,10 +83,37 @@ let test_read_points _ =
     ~printer:(fun x ->
       "[" ^ list_to_string (List.map GroupProject.Point.to_string x) ^ "]")
 
+let test_kmeans_initialization _ =
+  let points =
+    GroupProject.
+      [
+        Point.create 2 [ 1.0; 1.0 ];
+        Point.create 2 [ 2.0; 2.0 ];
+        Point.create 2 [ 3.0; 3.0 ];
+        Point.create 2 [ 10.0; 10.0 ];
+      ]
+  in
+
+  (* Test valid initialisation *)
+  let clusters = initialize_clusters 2 points in
+  assert_equal 2 (List.length clusters);
+
+  (* Test initialization with invalid k *)
+  assert_raises (Invalid_argument "k cannot be larger than number of points")
+    (fun () -> initialize_clusters 5 points);
+
+  (* Test initialization with different dimensions *)
+  let invalid_points =
+    GroupProject.Point.create 3 [ 1.0; 1.0; 1.0 ] :: points
+  in
+  assert_raises (Invalid_argument "All points must have the same dimension")
+    (fun () -> initialize_clusters 2 invalid_points)
+
 let rec test_cases =
   [
     ("Test Points" >:: fun _ -> test_distance ());
     ("Test CsvReader" >:: fun _ -> test_read_points ());
+    ("Test Kmeans" >:: fun _ -> test_kmeans_initialization ());
   ]
 
 let () = run_test_tt_main ("Point Tests" >::: test_cases)
