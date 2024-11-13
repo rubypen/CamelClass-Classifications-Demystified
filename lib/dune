@@ -1,3 +1,4 @@
 (library
  (name GroupProject)
- (libraries csv))
+ (libraries csv)
+ (modules kmeans point csvreader))
