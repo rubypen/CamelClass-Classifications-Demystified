@@ -4,10 +4,10 @@ Assuming we're in the root directory, OCAML_3110_GP:
 dune exec bin/main.exe
 
 - To process a csv of 1D points:
-dune exec bin/main.exe data/test_data.csv 1D
+dune exec bin/main.exe data/test_data.csv 1
 
 - To process a csv of 2D points:
-dune exec bin/main.exe ./data/test_data_2d.csv 2D
+dune exec bin/main.exe ./data/test_data_2d.csv 2
 
 - To process a csv of 3D points:
-dune exec bin/main.exe ./data/test_data_3d.csv 3D
+dune exec bin/main.exe ./data/test_data_3d.csv 3
