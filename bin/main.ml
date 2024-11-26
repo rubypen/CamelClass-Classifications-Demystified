@@ -1,5 +1,59 @@
-open GroupProject.Csvreader
 open GroupProject.Point
+open GroupProject.Csvreader
+open GMain
+
+(* Initialize the GUI *)
+let init = GMain.init ()
+
+(* Create the window *)
+let w = GWindow.window ~title:"CamelClass" ~show:true ()
+
+(* Create a vertical box to organize layout*)
+let vbox = GPack.vbox ~packing:w#add ()
+
+(* Event handler for the button click *)
+let open_file () =
+  (* Create a file chooser dialog *)
+  let dialog =
+    GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select a File" ~parent:w
+      ~position:`CENTER_ON_PARENT ()
+  in
+
+  (* Create buttons to open or cancel the file selection *)
+  let _ = dialog#add_button_stock `OPEN `OPEN in
+  let _ = dialog#add_button_stock `CANCEL `CANCEL in
+
+  (* Run the file chooser *)
+  let _ =
+    begin
+      match dialog#run () with
+      | `OPEN -> (
+          match dialog#filename with
+          | Some file -> Printf.printf "Selected file: %s\n%!" file
+          | None ->
+              Printf.printf
+                "No file selected. Please make sure you provide a file if you \
+                 wish to proceed.\n\
+                 %!")
+      | `CANCEL | `DELETE_EVENT ->
+          Printf.printf "You cancelled the file selection.\n%!"
+    end
+  in
+  dialog#destroy ()
+
+(* Add a button and connect the event handler *)
+let button = GButton.button ~label:"Open File" ~packing:vbox#pack ()
+let () = ignore (button#connect#clicked ~callback:open_file)
+
+(* Stop the program when the window is closed *)
+let () =
+  ignore
+    (w#connect#destroy ~callback:(fun () ->
+         GMain.quit ();
+         exit 0))
+
+(* Show the GUI and start running it *)
+let () = GMain.main ()
 
 (** [is_csv c] is whether or not [c] is a csv file *)
 let is_csv c =
