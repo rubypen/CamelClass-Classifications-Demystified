@@ -1,174 +1,192 @@
 open GroupProject.Point
 open GroupProject.Csvreader
+open GroupProject.Kmeans
+
+(* GUI setup *)
 open GMain
+open Gtk
 
 (* Initialize the GUI *)
 let init = GMain.init ()
 
-(* Create the window *)
-let w = GWindow.window ~title:"CamelClass" ~show:true ()
+(* Create main window *)
+let window =
+  GWindow.window ~title:"K-means Clustering" ~width:800 ~height:600
+    ~position:`CENTER ()
 
-(* Create a vertical box to organize layout*)
-let vbox = GPack.vbox ~packing:w#add ()
+(* Create main vertical box for layout *)
+let vbox = GPack.vbox ~packing:window#add ()
 
-(* Event handler for the button click *)
+(* Create drawing area *)
+let drawing_area = GMisc.drawing_area ~packing:vbox#pack ()
+let () = drawing_area#misc#set_size_request ~width:600 ~height:400 ()
+
+(* Create controls area *)
+let controls_box = GPack.hbox ~packing:vbox#pack ()
+
+(* File selection button *)
+let file_button =
+  GButton.button ~label:"Open File" ~packing:controls_box#pack ()
+
+(* K selection *)
+let k_box = GPack.hbox ~packing:controls_box#pack ()
+let _ = GMisc.label ~text:"K value: " ~packing:k_box#pack ()
+let k_adj = GData.adjustment ~lower:2. ~upper:10. ~step_incr:1. ~value:2. ()
+let k_spin = GEdit.spin_button ~adjustment:k_adj ~packing:k_box#pack ()
+
+(* Distance metric selection *)
+let metric_box = GPack.hbox ~packing:controls_box#pack ()
+let _ = GMisc.label ~text:"Distance: " ~packing:metric_box#pack ()
+
+let radio_euclidean =
+  GButton.radio_button ~label:"Euclidean" ~packing:metric_box#pack ()
+
+let radio_manhattan =
+  GButton.radio_button ~group:radio_euclidean#group ~label:"Manhattan"
+    ~packing:metric_box#pack ()
+
+(* Run button *)
+let run_button =
+  GButton.button ~label:"Run K-means" ~packing:controls_box#pack ()
+
+(* Text view for messages *)
+let scrolled_window =
+  GBin.scrolled_window ~hpolicy:`AUTOMATIC ~vpolicy:`AUTOMATIC
+    ~packing:vbox#pack ()
+
+let text_view = GText.view ~packing:scrolled_window#add ()
+let () = text_view#misc#set_size_request ~width:600 ~height:150 ()
+let buffer = text_view#buffer
+
+(* Store current points and dimension *)
+let current_points = ref []
+let current_dim = ref 0
+
+(* State tracking *)
+let current_k = ref 2
+let current_metric = ref "Euclidean"
+
+(* K-value change handler *)
+let on_k_changed () =
+  current_k := int_of_float k_adj#value;
+  buffer#insert ("\nK value changed to: " ^ string_of_int !current_k ^ "\n")
+
+(* Distance metric change handler *)
+let on_metric_changed () =
+  current_metric := if radio_euclidean#active then "Euclidean" else "Manhattan";
+  buffer#insert ("\nDistance metric changed to: " ^ !current_metric ^ "\n")
+
+(* File selection handler *)
 let open_file () =
-  (* Create a file chooser dialog *)
   let dialog =
-    GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select a File" ~parent:w
-      ~position:`CENTER_ON_PARENT ()
+    GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select CSV File"
+      ~parent:window ~position:`CENTER_ON_PARENT ()
   in
 
-  (* Create buttons to open or cancel the file selection *)
-  let _ = dialog#add_button_stock `OPEN `OPEN in
-  let _ = dialog#add_button_stock `CANCEL `CANCEL in
+  (* Add buttons *)
+  dialog#add_button_stock `OPEN `OPEN;
+  dialog#add_button_stock `CANCEL `CANCEL;
 
-  (* Run the file chooser *)
-  let _ =
-    begin
-      match dialog#run () with
-      | `OPEN -> (
-          match dialog#filename with
-          | Some file -> Printf.printf "Selected file: %s\n%!" file
-          | None ->
-              Printf.printf
-                "No file selected. Please make sure you provide a file if you \
-                 wish to proceed.\n\
-                 %!")
-      | `CANCEL | `DELETE_EVENT ->
-          Printf.printf "You cancelled the file selection.\n%!"
-    end
-  in
-  dialog#destroy ()
+  (* Add file filters *)
+  let filter = GFile.filter ~name:"CSV Files" () in
+  filter#add_pattern "*.csv";
+  dialog#add_filter filter;
 
-(* Add a button and connect the event handler *)
-let button = GButton.button ~label:"Open File" ~packing:vbox#pack ()
-let () = ignore (button#connect#clicked ~callback:open_file)
+  (* Run dialog *)
+  let result = dialog#run () in
+  let filename = dialog#filename in
+  dialog#destroy ();
 
-(* Stop the program when the window is closed *)
+  match result with
+  | `OPEN -> (
+      match filename with
+      | Some file -> (
+          buffer#set_text ("Loading file: " ^ file ^ "\n");
+          try
+            let csv = Csv.load file in
+            let first_line = List.hd csv in
+            let dim = List.length first_line in
+            current_dim := dim;
+            current_points := CsvReaderImpl.read_points dim file;
+
+            buffer#insert
+              ("Successfully loaded "
+              ^ string_of_int (List.length !current_points)
+              ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
+              ^ "Sample points:\n");
+
+            let rec show_n_points points n =
+              match (points, n) with
+              | [], _ -> ()
+              | _, 0 -> ()
+              | p :: ps, n ->
+                  buffer#insert (GroupProject.Point.to_string p ^ "\n");
+                  show_n_points ps (n - 1)
+            in
+            show_n_points !current_points 5;
+
+            if dim <> 2 then
+              buffer#insert
+                "\n\
+                 Note: Points are not 2D. Visualization will not be available.\n";
+
+            run_button#misc#set_sensitive true
+          with e ->
+            buffer#set_text
+              ("Error reading file: " ^ Printexc.to_string e ^ "\n");
+            run_button#misc#set_sensitive false)
+      | None ->
+          buffer#set_text "No file selected.\n";
+          run_button#misc#set_sensitive false)
+  | `CANCEL | `DELETE_EVENT ->
+      buffer#set_text "File selection cancelled.\n";
+      run_button#misc#set_sensitive false
+
+(* Run k-means handler *)
+let run_kmeans () =
+  match !current_points with
+  | [] -> buffer#insert "\nNo data loaded. Please select a file first.\n"
+  | points -> (
+      buffer#insert
+        ("\nRunning k-means with:\n" ^ "K = " ^ string_of_int !current_k ^ "\n"
+       ^ "Distance metric: " ^ !current_metric ^ "\n" ^ "Number of points: "
+        ^ string_of_int (List.length points)
+        ^ "\n\n");
+
+      try
+        let distance_fn =
+          if !current_metric = "Euclidean" then euclidean_distance
+          else manhattan_distance
+        in
+        let clusters = run_custom_kmeans !current_k points distance_fn in
+
+        buffer#insert "Clustering completed. Results:\n\n";
+        List.iteri
+          (fun i cluster ->
+            buffer#insert
+              ("Cluster "
+              ^ string_of_int (i + 1)
+              ^ " center: "
+              ^ GroupProject.Point.to_string cluster
+              ^ "\n"))
+          clusters;
+
+        (* If points are 2D, we'll add visualization later *)
+        if !current_dim = 2 then
+          buffer#insert "\nVisualization will be added in the next step!\n"
+      with e ->
+        buffer#insert
+          ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"))
+
 let () =
-  ignore
-    (w#connect#destroy ~callback:(fun () ->
-         GMain.quit ();
-         exit 0))
-
-(* Show the GUI and start running it *)
-let () = GMain.main ()
-
-(** [is_csv c] is whether or not [c] is a csv file *)
-let is_csv c =
-  let len = String.length c in
-  if len < 4 || String.sub c (len - 4) 4 <> ".csv" then begin
-    Printf.printf "\nThis is not a valid csv file";
-    false
-  end
-  else true
-
-(** [is_dimension d] is whether or not [d] is a valid dimension *)
-let is_dimension d =
-  try d > 0
-  with _ ->
-    Printf.printf
-      "\n\
-       This is an invalid coordinate: Try [1] [2] or  [N] where N is a \
-       positive integer";
-    false
-
-(** [print_points file d] prints the points of dimension [d] in [file]. *)
-let print_points file d =
-  try
-    let p_list = List.map to_string (CsvReaderImpl.read_points d file) in
-    List.iter (fun x -> Printf.printf "%s\n" x) p_list
-  with _ -> failwith "Bad Points CSV"
-
-(* Create a dummy point based on user input or use default values *)
-
-(** [dummy_pt dim] is a dummy point created by the user or a default dummy point
-    if the user does not provide one. *)
-let dummy_pt dim =
-  Printf.printf
-    "\n\
-     Now you will specify a point to calculate distances from each point in \
-     your CSV file.\n";
-  let prompt_coordinate name =
-    Printf.printf "\nPlease specify the %s coordinate as a number: " name;
-    match read_line () with
-    | input -> ( try float_of_string input with Failure _ -> 1.0)
-    | exception End_of_file -> 1.0
-  in
-  let coords =
-    List.init dim (fun i -> prompt_coordinate ("X" ^ string_of_int (i + 1)))
-  in
-  create dim coords
-
-(** [distances p dim dist_metric] is the list of distance(s) between the points
-    [p] in csv and a dummy point *)
-let distances p dim dist_metric =
-  let p_list = CsvReaderImpl.read_points dim p in
-  let dp = dummy_pt dim in
-  List.iter
-    (fun p ->
-      let distance =
-        match dist_metric with
-        | "euclidian" -> euclidean_distance p dp
-        | "manhattan" -> manhattan_distance p dp
-        | _ -> failwith "Invalid distance metric"
-      in
-      Printf.printf "The %s distance between %s and %s is: %5.2f\n" dist_metric
-        (to_string p) (to_string dp) distance)
-    p_list
-
-(** [print_distance] prints the distance(s) between all of the points i in i = 1
-    ... n and a dummy point based on a distance metric the user chooses *)
-
-let print_distances points dim =
-  Printf.printf
-    "What distance metric would\n\
-    \ you like to use: [Euclidian] or [Manhattan]>> ";
-  let distance_metric = String.lowercase_ascii (read_line ()) in
-  match distance_metric with
-  | "euclidian" -> distances points dim "euclidian"
-  | "manhattan" -> distances points dim "manhattan"
-  | _ -> Printf.printf "The metric you have provided is invalid\n"
-
-(** [analyze_args input len] is the Printf statement corresponding to different
-    aspects of [input] *)
-let analyze_args input len =
-  if len = 1 then begin
-    Printf.printf
-      "You have not provided a csv file with points, so a\n\
-      \ default csv is being used with the following points: \n";
-    print_points "./data/test_data_2d.csv" 2;
-    print_distances "./data/test_data_2d.csv" 2
-  end
-  else begin
-    let arg1 = input.(1) in
-    let arg2 = input.(2) in
-    if is_csv arg1 && is_dimension (int_of_string arg2) then
-      Printf.printf "The points in your csv are the following:\n ";
-    print_points arg1 (int_of_string arg2);
-    print_distances arg1 (int_of_string arg2)
-  end
-
-(** [_] is the Printf statement corresponding to different aspects of user
-    input. If a user provided a csv file, we print a user-friendly output
-    describing the distance between all of the points i in i = 1 ... n in their
-    file and a dummy point. If a csv is not provided, a default csv file is
-    evaluated. *)
-let _ =
-  let num_of_args = 2 in
-  let input = Sys.argv in
-  let len = Array.length input in
-  if len > num_of_args + 1 then
-    Printf.printf "You\n   have\n provided too many command-line arguments"
-  else if len = 2 then
-    Printf.printf
-      "You have not provided enough arguments:\n\
-      \  Hint: You might\n\
-      \   be missing the\n\
-      \  dimensional indicator: [1] [2] [...] [N] where N is a positive \
-       integer."
-  else
-    try analyze_args input len
-    with Sys_error _ ->
-      Printf.printf "\nMake sure your\n   argument(s) are valid file\n path(s)"
+  ignore (file_button#connect#clicked ~callback:open_file);
+  ignore (k_spin#connect#value_changed ~callback:on_k_changed);
+  ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
+  ignore (radio_manhattan#connect#clicked ~callback:on_metric_changed);
+  ignore (run_button#connect#clicked ~callback:run_kmeans);
+  ignore (window#connect#destroy ~callback:Main.quit);
+  run_button#misc#set_sensitive false;
+  buffer#set_text
+    "Welcome to K-means Clustering\nPlease select a data file to begin.\n";
+  window#show ();
+  Main.main ()
