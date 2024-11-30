@@ -1,6 +1,7 @@
 open GroupProject.Point
 open GroupProject.Csvreader
 open GroupProject.Kmeans
+open Cairo
 
 (* GUI setup *)
 open GMain
@@ -142,25 +143,158 @@ let open_file () =
       buffer#set_text "File selection cancelled.\n";
       run_button#misc#set_sensitive false
 
-(* Run k-means handler *)
+(* Colors for different clusters *)
+let get_cluster_color i =
+  let colors =
+    [|
+      (1.0, 0.0, 0.0);
+      (* Red *)
+      (0.0, 0.0, 1.0);
+      (* Blue *)
+      (0.0, 0.8, 0.0);
+      (* Green *)
+      (1.0, 0.6, 0.0);
+      (* Orange *)
+      (0.8, 0.0, 0.8);
+      (* Purple *)
+      (0.0, 0.8, 0.8);
+      (* Cyan *)
+      (1.0, 0.0, 0.5);
+      (* Pink *)
+      (0.5, 0.5, 0.0);
+      (* Olive *)
+    |]
+  in
+  Array.get colors (i mod Array.length colors)
+
+(* Point scaling helper *)
+let scale_points points width height =
+  let padding = 40 in
+  let max_x = ref (-.max_float) in
+  let max_y = ref (-.max_float) in
+  let min_x = ref max_float in
+  let min_y = ref max_float in
+
+  (* Find bounds *)
+  List.iter
+    (fun p ->
+      let coords = get_coordinates p in
+      let x = List.nth coords 0 in
+      let y = List.nth coords 1 in
+      max_x := max !max_x x;
+      max_y := max !max_y y;
+      min_x := min !min_x x;
+      min_y := min !min_y y)
+    points;
+
+  let scale_x = float_of_int (width - (2 * padding)) /. (!max_x -. !min_x) in
+  let scale_y = float_of_int (height - (2 * padding)) /. (!max_y -. !min_y) in
+
+  fun (x, y) ->
+    let x_scaled = padding + int_of_float ((x -. !min_x) *. scale_x) in
+    let y_scaled = height - padding - int_of_float ((y -. !min_y) *. scale_y) in
+    (x_scaled, y_scaled)
+
+let list_fold_lefti f init l =
+  let rec fold i acc = function
+    | [] -> acc
+    | x :: xs -> fold (i + 1) (f acc i x) xs
+  in
+  fold 0 init l
+
+let generate_svg_visualization points clusters =
+  let width = 600 in
+  let height = 400 in
+
+  (* Get the scaling function *)
+  let scale = scale_points points width height in
+
+  (* Create SVG header *)
+  let svg =
+    Printf.sprintf
+      "<svg width='%d' height='%d' xmlns='http://www.w3.org/2000/svg'>\n" width
+      height
+  in
+
+  (* Add white background *)
+  let svg =
+    svg
+    ^ Printf.sprintf "<rect width='%d' height='%d' fill='white'/>\n" width
+        height
+  in
+
+  (* Draw points for each cluster *)
+  let svg =
+    list_fold_lefti
+      (fun acc i cluster_point ->
+        let cluster_color = get_cluster_color i in
+        let r, g, b = cluster_color in
+
+        (* Get points in this cluster *)
+        let cluster_points =
+          List.filter
+            (fun p ->
+              let curr_dist = euclidean_distance p cluster_point in
+              List.for_all
+                (fun other_cluster ->
+                  curr_dist <= euclidean_distance p other_cluster)
+                clusters)
+            points
+        in
+
+        (* Draw each point in the cluster *)
+        let cluster_svg =
+          List.fold_left
+            (fun acc p ->
+              let coords = get_coordinates p in
+              let x, y = scale (List.nth coords 0, List.nth coords 1) in
+              acc
+              ^ Printf.sprintf
+                  "<circle cx='%d' cy='%d' r='4' fill='rgb(%d,%d,%d)'/>\n" x y
+                  (int_of_float (r *. 255.))
+                  (int_of_float (g *. 255.))
+                  (int_of_float (b *. 255.)))
+            "" cluster_points
+        in
+
+        (* Draw cluster center *)
+        let center_coords = get_coordinates cluster_point in
+        let cx, cy =
+          scale (List.nth center_coords 0, List.nth center_coords 1)
+        in
+        let center_svg =
+          Printf.sprintf "<circle cx='%d' cy='%d' r='6' fill='black'/>\n" cx cy
+        in
+
+        acc ^ cluster_svg ^ center_svg)
+      svg clusters
+  in
+
+  (* Close SVG *)
+  svg ^ "</svg>"
+
+(* Update run_kmeans to use this *)
 let run_kmeans () =
   match !current_points with
-  | [] -> buffer#insert "\nNo data loaded. Please select a file first.\n"
+  | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
   | points -> (
-      buffer#insert
-        ("\nRunning k-means with:\n" ^ "K = " ^ string_of_int !current_k ^ "\n"
-       ^ "Distance metric: " ^ !current_metric ^ "\n" ^ "Number of points: "
-        ^ string_of_int (List.length points)
-        ^ "\n\n");
-
       try
         let distance_fn =
-          if !current_metric = "Euclidean" then euclidean_distance
+          if radio_euclidean#active then euclidean_distance
           else manhattan_distance
         in
         let clusters = run_custom_kmeans !current_k points distance_fn in
+        buffer#insert "Clustering completed.\n";
 
-        buffer#insert "Clustering completed. Results:\n\n";
+        if !current_dim = 2 then begin
+          let svg = generate_svg_visualization points clusters in
+          let oc = open_out "clustering.svg" in
+          Printf.fprintf oc "%s" svg;
+          close_out oc;
+          buffer#insert "Visualization saved to 'clustering.svg'\n"
+        end
+        else buffer#insert "Points are not 2D - visualization not available.\n";
+
         List.iteri
           (fun i cluster ->
             buffer#insert
@@ -169,11 +303,7 @@ let run_kmeans () =
               ^ " center: "
               ^ GroupProject.Point.to_string cluster
               ^ "\n"))
-          clusters;
-
-        (* If points are 2D, we'll add visualization later *)
-        if !current_dim = 2 then
-          buffer#insert "\nVisualization will be added in the next step!\n"
+          clusters
       with e ->
         buffer#insert
           ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"))
