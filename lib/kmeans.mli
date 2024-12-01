@@ -17,6 +17,10 @@ val has_converged : Point.t list -> Point.t list -> float -> bool
 (** [has_converged old_clusters new_clusters threshold] checks if the centroids
     have changed position by less than threshold. *)
 
+val run_kmeans : int -> Point.t list -> Point.t list
+(** [run_kmeans k points] performs the k-means clustering algorithm on the given
+    list of points [points], with [k] classifications. *)
+
 val run_range_kmeans : Point.t list -> Point.t list list
 (** [run_range_kmeans points] runs kmeans on [points] for a range of k values
     from 1-10. *)
