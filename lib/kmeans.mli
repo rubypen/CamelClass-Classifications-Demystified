@@ -1,5 +1,9 @@
 open Point
 
+val check_same_dimension : Point.t list -> bool
+(** [check_same_dimension points] is whether all points in the list [points]
+    have the same number of dimensions, or if the list is empty. *)
+
 val initialize_clusters : int -> Point.t list -> Point.t list
 (** [initialize_clusters k points] randomly selects [k] points from [points] as
     initial centroids. Raise *)
