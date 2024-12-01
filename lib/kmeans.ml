@@ -2,7 +2,7 @@ open Point
 
 let check_same_dimension points =
   match points with
-  | [] -> true (* empty list is considered valid *)
+  | [] -> true
   | first :: rest ->
       let dim = List.length (get_coordinates first) in
       List.for_all (fun p -> List.length (get_coordinates p) = dim) rest
@@ -15,7 +15,6 @@ let initialize_clusters k points =
   else if not (check_same_dimension points) then
     invalid_arg "All points must have the same dimension"
   else begin
-    (* Fisher-Yates shuffle used to select k random points *)
     let arr = Array.of_list points in
     let n = Array.length arr in
     for i = n - 1 downto n - k do
