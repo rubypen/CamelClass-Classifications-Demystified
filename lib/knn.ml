@@ -14,8 +14,8 @@ let rec take n lst =
   | x :: xs -> x :: take (n - 1) xs
 
 let k_nearest_neighbors k point points_list =
-  if k <= 0 then invalid_arg "k\n   must be positive"
-  else if points_list = [] then invalid_arg "No labeled\n   points provided"
+  if k <= 0 then invalid_arg "k must be positive"
+  else if points_list = [] then invalid_arg "No labeled points provided"
   else
     let sorted_points = sort_by_distance point points_list in
     take k sorted_points
