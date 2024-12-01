@@ -2,6 +2,7 @@ open OUnit2
 open GroupProject.Point
 open GroupProject.Csvreader
 open GroupProject.Kmeans
+open GroupProject.Knn
 
 (** [list_to_string lst] creates a string with the elements of [lst] separated
     by semicolon. *)
@@ -210,6 +211,61 @@ let test_find_best_k _ =
   let best_k = find_best_k clusters_sets points in
   assert_bool "Best k is positive" (best_k > 0)
 
+let create_labeled_points points labels =
+  List.map2 (fun p l -> (p, l)) points labels
+
+let test_sort_by_distance _ =
+  let query_point = create 2 [ 0.0; 0.0 ] in
+  let points =
+    [ create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ]; create 2 [ 3.0; 3.0 ] ]
+  in
+  let labeled_points = create_labeled_points points [ "A"; "B"; "C" ] in
+  let sorted_points = sort_by_distance query_point labeled_points in
+  let actual_sorted_labels = List.map snd sorted_points in
+  let expected_sorted_labels = [ "A"; "B"; "C" ] in
+
+  assert_bool "Lengths differ"
+    (List.length actual_sorted_labels = List.length expected_sorted_labels);
+
+  List.iter2
+    (fun actual expected -> assert_equal actual expected)
+    actual_sorted_labels expected_sorted_labels
+
+(* Test for k_nearest_neighbors *)
+let test_k_nearest_neighbors _ =
+  let query_point = create 2 [ 0.0; 0.0 ] in
+  let points =
+    [ create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ]; create 2 [ 3.0; 3.0 ] ]
+  in
+  let labeled_points = create_labeled_points points [ "A"; "B"; "C" ] in
+  (* Test k = 2 neighbors *)
+  let k = 2 in
+  let neighbors = k_nearest_neighbors k query_point labeled_points in
+  assert_equal k (List.length neighbors)
+
+let test_classify _ =
+  let points =
+    [
+      (create 2 [ 1.0; 1.0 ], "A");
+      (create 2 [ 2.0; 2.0 ], "B");
+      (create 2 [ 3.0; 3.0 ], "B");
+      (create 2 [ 4.0; 4.0 ], "C");
+    ]
+  in
+  let query_point = create 2 [ 0.0; 0.0 ] in
+
+  let classification_k1 = classify 1 query_point points in
+  assert_equal "A" classification_k1 ~msg:"k=1: Should classify as 'A'";
+
+  let classification_k2 = classify 2 query_point points in
+  assert_equal "A" classification_k2 ~msg:"k=2: Should classify as 'A'";
+
+  let classification_k3 = classify 3 query_point points in
+  assert_equal "B" classification_k3 ~msg:"k=3: Should classify as 'B'";
+
+  let classification_k4 = classify 4 query_point points in
+  assert_equal "B" classification_k4 ~msg:"k=4: Should classify as 'B'"
+
 let rec test_cases =
   [
     ("Test Points" >:: fun _ -> test_distance ());
@@ -224,6 +280,9 @@ let rec test_cases =
     "test_total_variation" >:: test_total_variation;
     "test_find_best_set" >:: test_find_best_set;
     "test_find_best_k" >:: test_find_best_k;
+    "test_sort_by_distance" >:: test_sort_by_distance;
+    "test_k_nearest_neighbors" >:: test_k_nearest_neighbors;
+    "test_classify" >:: test_classify;
   ]
 
 let () = run_test_tt_main ("Point Tests" >::: test_cases)
