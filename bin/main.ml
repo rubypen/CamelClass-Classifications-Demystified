@@ -45,11 +45,43 @@ let initialize_gui () =
     in
     dialog#destroy ()
   in
+  
+  (* Add text message to the window *)
+  let _indent =
+    GMisc.label ~markup:"<span size='50000'><b></b></span>" ~selectable:true
+      ~yalign:0.0 ~height:50
+      ~packing:(vbox#pack ~expand:true ~fill:true)
+      ()
+  in
+  let _project_title =
+    GMisc.label ~markup:"<span size='50000'><b>Project Title</b></span>"
+      ~selectable:true ~yalign:0.0 ~height:50
+      ~packing:(vbox#pack ~expand:true ~fill:true)
+      ()
+  in
+  let _project_subtitle =
+    GMisc.label ~markup:"<span size='25000'>K-means</span>" ~selectable:true
+      ~yalign:0.5 ~height:50
+      ~packing:(vbox#pack ~expand:true ~fill:true)
+      ()
+  in
 
+  (* Add an alignment for the button *)
+  let align =
+    GBin.alignment ~xalign:0.5 ~yalign:0.5 ~height:50 ~width:100
+      ~packing:vbox#pack ()
+  in
+
+  (* Add a button and connect the event handler *)
+  (* let button = GButton.button ~label:"Open File" ~packing:vbox#pack () in
+     ignore (button#connect#clicked ~callback:open_file); *)
+  let start_button = GButton.button ~label:"Start" ~packing:align#add () in
+  ignore (start_button#connect#clicked ~callback:open_file);
+=======
   (* Add a button and connect the event handler *)
   let button = GButton.button ~label:"Open File" ~packing:vbox#pack () in
   ignore (button#connect#clicked ~callback:open_file);
-
+  
   (* Stop the program when the window is closed *)
   ignore
     (w#connect#destroy ~callback:(fun () ->
