@@ -16,3 +16,5 @@ type style =
 
 val clr_ : style -> color -> ('a, unit, string) format -> 'a
 (** [clr_ s c str] is the string [str] with style [s] and color [clr]. *)
+
+val welcome_ascii : string
