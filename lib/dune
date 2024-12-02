@@ -1,3 +1,5 @@
 (library
  (name GroupProject)
- (libraries csv lablgtk3))
+ (libraries csv lablgtk3 ANSITerminal lwt.unix)
+ (instrumentation
+  (backend bisect_ppx)))
