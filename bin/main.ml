@@ -1,31 +1,36 @@
 open GroupProject.Point
 open GroupProject.Csvreader
+open GroupProject.Kmeans
+open GroupProject.Extensions
 open GMain
 
-(* Initialize the GUI *)
-let init = GMain.init ()
+(** ============================= GUI FUNCTIONALITY ========================= *)
 
-(* Create the window *)
-let w = GWindow.window ~title:"CamelClass" ~show:true ()
+let initialize_gui () =
+  (* Initialize the GUI *)
+  let init = GMain.init () in
+  ignore init;
 
-(* Create a vertical box to organize layout*)
-let vbox = GPack.vbox ~packing:w#add ()
+  (* Create the window *)
+  let w = GWindow.window ~title:"CamelClass" ~show:true () in
 
-(* Event handler for the button click *)
-let open_file () =
-  (* Create a file chooser dialog *)
-  let dialog =
-    GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select a File" ~parent:w
-      ~position:`CENTER_ON_PARENT ()
-  in
+  (* Create a vertical box to organize layout *)
+  let vbox = GPack.vbox ~packing:w#add () in
 
-  (* Create buttons to open or cancel the file selection *)
-  let _ = dialog#add_button_stock `OPEN `OPEN in
-  let _ = dialog#add_button_stock `CANCEL `CANCEL in
+  (* Event handler for the button click *)
+  let open_file () =
+    (* Create a file chooser dialog *)
+    let dialog =
+      GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select a File" ~parent:w
+        ~position:`CENTER_ON_PARENT ()
+    in
 
-  (* Run the file chooser *)
-  let _ =
-    begin
+    (* Create buttons to open or cancel the file selection *)
+    let _ = dialog#add_button_stock `OPEN `OPEN in
+    let _ = dialog#add_button_stock `CANCEL `CANCEL in
+
+    (* Run the file chooser *)
+    let _ =
       match dialog#run () with
       | `OPEN -> (
           match dialog#filename with
@@ -37,23 +42,66 @@ let open_file () =
                  %!")
       | `CANCEL | `DELETE_EVENT ->
           Printf.printf "You cancelled the file selection.\n%!"
-    end
+    in
+    dialog#destroy ()
   in
-  dialog#destroy ()
 
-(* Add a button and connect the event handler *)
-let button = GButton.button ~label:"Open File" ~packing:vbox#pack ()
-let () = ignore (button#connect#clicked ~callback:open_file)
+  (* Add a button and connect the event handler *)
+  let button = GButton.button ~label:"Open File" ~packing:vbox#pack () in
+  ignore (button#connect#clicked ~callback:open_file);
 
-(* Stop the program when the window is closed *)
-let () =
+  (* Stop the program when the window is closed *)
   ignore
     (w#connect#destroy ~callback:(fun () ->
          GMain.quit ();
-         exit 0))
+         exit 0));
 
-(* Show the GUI and start running it *)
-let () = GMain.main ()
+  (* Show the GUI and start running it *)
+  GMain.main ()
+
+(** ======================= I/0 FUNCTIONALITY =============================== *)
+
+(* !! ASK PROFS ABT. WHAT TYPE OF COMMENTS ARE BETTER FOR ORGANIZATION !! *)
+
+(* MARK: - Properties (Data) *)
+let default_files = Hashtbl.create 10;;
+
+Hashtbl.add default_files "./data/test_data.csv" 1;;
+Hashtbl.add default_files "./data/test_data_2d.csv" 2;;
+Hashtbl.add default_files "./data/test_data_3d.csv" 3
+
+(* MARK: - Properties (Utilities) *)
+
+(** [show_progress_bar task] declares the [task] being working on, displays a
+    progress bar filled to 100% after 1 second, and lastly declares a success
+    message. *)
+let show_progress_bar task =
+  Printf.printf "Working on: %s...\n%!" task;
+  Unix.sleep 1;
+  Printf.printf "%s 100%%\n" (clr_ Bold Blue "[##################]");
+  Printf.printf "Task '%s' completed successfully!\n\n" task
+
+(** [print_help ()] prints a list of actions the user can perform with the
+    points from their CSV file. *)
+let print_help () =
+  let msg = clr_ Und Cyan "\nCommands that may be used:\n" in
+  let display = clr_ Bold Ylw "points" in
+  let distances = clr_ Bold Ylw "dists" in
+  let kmeans = clr_ Bold Ylw "kmeans" in
+  let knn = clr_ Bold Ylw "knn" in
+  let help = clr_ Bold Ylw "help" in
+  let exit = clr_ Bold Ylw "exit" in
+  Printf.printf "%s" msg;
+  Printf.printf "- %s : View all points from the CSV file.\n" display;
+  Printf.printf
+    "- %s :Compute distances between points using a selected metric.\n"
+    distances;
+  Printf.printf "- %s : Perform k-means. \n" kmeans;
+  Printf.printf "- %s : Perform k-nearest neighbors. \n" knn;
+  Printf.printf "- %s : Display HELP message. \n" help;
+  Printf.printf "- %s :  Exit the program. \n" exit
+
+(* MARK: - Properties (Assurance) *)
 
 (** [is_csv c] is whether or not [c] is a csv file *)
 let is_csv c =
@@ -74,6 +122,8 @@ let is_dimension d =
        positive integer";
     false
 
+(* ======================== Point Display Logic ============================= *)
+
 (** [print_points file d] prints the points of dimension [d] in [file]. *)
 let print_points file d =
   try
@@ -81,7 +131,7 @@ let print_points file d =
     List.iter (fun x -> Printf.printf "%s\n" x) p_list
   with _ -> failwith "Bad Points CSV"
 
-(* Create a dummy point based on user input or use default values *)
+(* ================ Distance Calculation and Display Logic ================== *)
 
 (** [dummy_pt dim] is a dummy point created by the user or a default dummy point
     if the user does not provide one. *)
@@ -91,8 +141,13 @@ let dummy_pt dim =
      Now you will specify a point to calculate distances from each point in \
      your CSV file.\n";
   let prompt_coordinate name =
-    Printf.printf "\nPlease specify the %s coordinate as a number: " name;
-    match read_line () with
+    let prompt =
+      clr_ Und Ylw "Please specify the %s coordinate as a number:" name
+    in
+    Printf.printf "\n%s " prompt;
+    let input = read_line () in
+    Printf.printf "\n";
+    match input with
     | input -> ( try float_of_string input with Failure _ -> 1.0)
     | exception End_of_file -> 1.0
   in
@@ -122,53 +177,163 @@ let distances p dim dist_metric =
     ... n and a dummy point based on a distance metric the user chooses *)
 
 let print_distances points dim =
-  Printf.printf
-    "What distance metric would\n\
-    \ you like to use: [Euclidian] or [Manhattan]>> ";
+  let prompt =
+    clr_ Reg Ylw
+      "What distance metric would you like to use ([Euclidian] or \
+       [Manhattan]): "
+  in
+  let err_msg = clr_ Bold Red "The metric you have provided is invalid\n" in
+  Printf.printf "%s" prompt;
   let distance_metric = String.lowercase_ascii (read_line ()) in
   match distance_metric with
   | "euclidian" -> distances points dim "euclidian"
   | "manhattan" -> distances points dim "manhattan"
-  | _ -> Printf.printf "The metric you have provided is invalid\n"
+  | _ -> Printf.printf "%s" err_msg
 
-(** [analyze_args input len] is the Printf statement corresponding to different
-    aspects of [input] *)
-let analyze_args input len =
-  if len = 1 then begin
-    Printf.printf
-      "You have not provided a csv file with points, so a\n\
-      \ default csv is being used with the following points: \n";
-    print_points "./data/test_data_2d.csv" 2;
-    print_distances "./data/test_data_2d.csv" 2
+(* ======================= Classification(s) UI Logic ======================= *)
+let run_kmeans_ui csv dim = ()
+let run_knn_ui csv dim = ()
+
+(* ============================= Input Handler(s) =========================== *)
+
+(** [prompt_for_csv_file ()] is the csv file the user provided if provided with
+    points in a valid format, otherwise they are assigned a random csv file with
+    points. *)
+let prompt_for_csv_file () =
+  let prompt_msg =
+    clr_ Reg Cyan
+      "\n\
+       Please provide the path to your CSV file (or press Enter to use the \
+       default file): "
+  in
+  let no_file_msg = clr_ Reg Ylw "No file provided. " in
+  Printf.printf "%s%!" prompt_msg;
+  match read_line () with
+  | "" -> begin
+      Random.self_init ();
+      let rand_index = Random.int 3 + 1 in
+      let default_file =
+        match rand_index with
+        | 1 -> "./data/test_data.csv"
+        | 2 -> "./data/test_data_2d.csv"
+        | _ -> "./data/test_data_3d.csv"
+      in
+      Printf.printf "%sUsing default file: %s\n\n" no_file_msg default_file;
+      default_file
+    end
+  | file ->
+      if is_csv file then begin
+        Printf.printf "\n";
+        show_progress_bar "Loading csv";
+        file
+      end
+      else (
+        Printf.printf "Invalid file type. Defaulting to the default file.\n";
+        "./data/test_data_2d.csv")
+
+(** [prompt_dimension csv] asks the user to provide what the dimension of their
+    points are if [csv] isn't a default file. *)
+let rec prompt_dimension csv =
+  let prompt_msg =
+    clr_ Reg Cyan
+      "Enter the dimension of your points (i.e., [1] [2] ... [N], where N is a \
+       positive integer): "
+  in
+  let invalid_dim_msg = clr_ Reg Ylw "Invalid input. " in
+  if Hashtbl.mem default_files csv then begin
+    let dim = Hashtbl.find default_files csv in
+    let dim_msg =
+      clr_ Reg Cyan "The points in %s have the following dimension: " csv
+    in
+    Printf.printf "%s %d\n" dim_msg dim;
+    dim
   end
   else begin
-    let arg1 = input.(1) in
-    let arg2 = input.(2) in
-    if is_csv arg1 && is_dimension (int_of_string arg2) then
-      Printf.printf "The points in your csv are the following:\n ";
-    print_points arg1 (int_of_string arg2);
-    print_distances arg1 (int_of_string arg2)
+    Printf.printf "%s" prompt_msg;
+    let input = read_line () in
+    match input with
+    | dim -> (
+        try
+          let dim = int_of_string dim in
+          if is_dimension dim then dim
+          else (
+            Printf.printf "%sPlease enter a valid dimension.\n\n"
+              invalid_dim_msg;
+            prompt_dimension csv)
+        with _ ->
+          Printf.printf "%sPlease enter a valid dimension.\n\n" invalid_dim_msg;
+          prompt_dimension csv)
   end
 
-(** [_] is the Printf statement corresponding to different aspects of user
-    input. If a user provided a csv file, we print a user-friendly output
-    describing the distance between all of the points i in i = 1 ... n in their
-    file and a dummy point. If a csv is not provided, a default csv file is
-    evaluated. *)
-let _ =
-  let num_of_args = 2 in
-  let input = Sys.argv in
-  let len = Array.length input in
-  if len > num_of_args + 1 then
-    Printf.printf "You\n   have\n provided too many command-line arguments"
-  else if len = 2 then
-    Printf.printf
-      "You have not provided enough arguments:\n\
-      \  Hint: You might\n\
-      \   be missing the\n\
-      \  dimensional indicator: [1] [2] [...] [N] where N is a positive \
-       integer."
-  else
-    try analyze_args input len
-    with Sys_error _ ->
-      Printf.printf "\nMake sure your\n   argument(s) are valid file\n path(s)"
+(* ============================= Execution Logic =========================== *)
+
+(** [command_handler file dim] is the handler of the program based on the user's
+    input. *)
+let rec command_handler file dim =
+  Printf.printf "%s" (clr_ Bold Cyan "\nEnter a command ('help' for options): ");
+  match String.lowercase_ascii (read_line ()) with
+  | "points" ->
+      print_points file dim;
+      command_handler file dim
+  | "dists" ->
+      print_distances file dim;
+      command_handler file dim
+  | "kmeans" ->
+      run_kmeans_ui file dim;
+      command_handler file dim
+  | "knn" ->
+      run_knn_ui file dim;
+      command_handler file dim
+  | "help" ->
+      print_help ();
+      command_handler file dim
+  | "exit" -> Printf.printf "\n%s" (clr_ Bold Grn "Exiting program. Goodbye!\n")
+  | _ ->
+      Printf.printf "%s" (clr_ Bold Red "Invalid command. Try again.\n");
+      command_handler file dim
+
+(** [run_io_mode ()] deals with program logic. *)
+let run_io_mode () =
+  let welcome_to_io_msg =
+    clr_ Reg Grn "\nYou are now in CamelClass I/O mode !!"
+  in
+  Printf.printf "%s\n" welcome_to_io_msg;
+  let csv_file = prompt_for_csv_file () in
+  let dimension = prompt_dimension csv_file in
+  command_handler csv_file dimension
+
+(** Main Function *)
+let () =
+  let len = Array.length Sys.argv in
+  let title = clr_ Bold Ylw "CamelClass: Classifications Demystified" in
+  let debrief =
+    "is a classification tool designed to simplify working with datasets in \
+     OCaml."
+  in
+  let error_msg =
+    clr_ Reg Red
+      "Error: You have provided too many arguments. Try running something \
+       like: "
+  in
+  let usage_msg = clr_ Reg Grn "$ dune exec bin/main.exe\n" in
+  let invld_choice_msg = clr_ Reg Ylw "Invalid Input. " in
+  try
+    if len > 1 then Printf.printf "%s\n%s" error_msg usage_msg
+    else begin
+      Printf.printf "%s\n" welcome_ascii;
+      Printf.printf "%s %s\n\n" title debrief;
+      Printf.printf "%s"
+        (clr_ Reg Cyan "Would you like to use [GUI] or [I/O] mode? ");
+      let input = String.lowercase_ascii (read_line ()) in
+      match input with
+      | "gui" -> initialize_gui ()
+      | "i/o" | "io" -> run_io_mode ()
+      | _ ->
+          Printf.printf "%sDefaulting to I/O mode.\n\n" invld_choice_msg;
+          run_io_mode ()
+    end
+  with Sys_error _ ->
+    Printf.printf "%s"
+      (clr_ Bold Red
+         "That was incorrect/invalid input. Please rerun the program and \
+          provide valid prompts.")
