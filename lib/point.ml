@@ -16,8 +16,8 @@ type t = {
 (* AF: the reference [{n; [a1, a2, ..., an]}] represents a point in n
    dimensional space located in a point in space where we have x1, x2, ... xn
    axis and the following condition is satisfied [x1=a1 && x2=a2 && ... xn=an].
-   Ex.: a point with coordinates [x=3.0, y=4.0, z=5.0] is represented by [3;
-   [3.0, 4.0, 5.0]] *)
+   Ex.: a point with coordinates [x=3.0, y=4.0, z=5.0] is represented by [{3;
+   [3.0, 4.0, 5.0]}] *)
 (* RI: The list passed for creation of a point must contain exactly [n]
    elements. These elements must be finite floats. *)
 

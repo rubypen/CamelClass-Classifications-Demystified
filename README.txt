@@ -1,13 +1,13 @@
+NOTE:
+If you see warnings that look like the following, ignore them as they do not 
+affect the program and are due to the ocaml gui kit we are using:
+ld: warning: ignoring duplicate libraries: '-lcairo', '-lfreetype'
+
+USAGE:
 Assuming we're in the root directory, OCAML_3110_GP:
 
-- To process a default csv (The default csv works with 2D points): 
-dune exec bin/main.exe
+- Run the Program
+dune exec bin/main.exe 
 
-- To process a csv of 1D points:
-dune exec bin/main.exe data/test_data.csv 1D
-
-- To process a csv of 2D points:
-dune exec bin/main.exe ./data/test_data_2d.csv 2D
-
-- To process a csv of 3D points:
-dune exec bin/main.exe ./data/test_data_3d.csv 3D
+- A path for a csv of 4D points if you'd like to input a csv when prompted:
+/Users/ruby/OHcaml/Ocaml_3110_GP/data/test_data_4d.csv

@@ -45,7 +45,7 @@ let initialize_gui () =
     in
     dialog#destroy ()
   in
-
+  
   (* Add text message to the window *)
   let _indent =
     GMisc.label ~markup:"<span size='50000'><b></b></span>" ~selectable:true
@@ -77,6 +77,11 @@ let initialize_gui () =
      ignore (button#connect#clicked ~callback:open_file); *)
   let start_button = GButton.button ~label:"Start" ~packing:align#add () in
   ignore (start_button#connect#clicked ~callback:open_file);
+=======
+  (* Add a button and connect the event handler *)
+  let button = GButton.button ~label:"Open File" ~packing:vbox#pack () in
+  ignore (button#connect#clicked ~callback:open_file);
+  
   (* Stop the program when the window is closed *)
   ignore
     (w#connect#destroy ~callback:(fun () ->

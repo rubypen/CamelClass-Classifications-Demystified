@@ -1,6 +1,8 @@
 open OUnit2
 open GroupProject.Point
 open GroupProject.Csvreader
+open GroupProject.Kmeans
+open GroupProject.Knn
 
 (** [list_to_string lst] creates a string with the elements of [lst] separated
     by semicolon. *)
@@ -82,10 +84,205 @@ let test_read_points _ =
     ~printer:(fun x ->
       "[" ^ list_to_string (List.map GroupProject.Point.to_string x) ^ "]")
 
+let test_kmeans_initialization _ =
+  let points =
+    GroupProject.
+      [
+        Point.create 2 [ 1.0; 1.0 ];
+        Point.create 2 [ 2.0; 2.0 ];
+        Point.create 2 [ 3.0; 3.0 ];
+        Point.create 2 [ 10.0; 10.0 ];
+      ]
+  in
+
+  let clusters = initialize_clusters 2 points in
+  assert_equal 2 (List.length clusters);
+
+  assert_raises (Invalid_argument "k cannot be larger than number of points")
+    (fun () -> initialize_clusters 5 points);
+
+  let invalid_points =
+    GroupProject.Point.create 3 [ 1.0; 1.0; 1.0 ] :: points
+  in
+  assert_raises (Invalid_argument "All points must have the same dimension")
+    (fun () -> initialize_clusters 2 invalid_points)
+
+let test_check_same_dimension _ =
+  let points =
+    GroupProject.Point.[ create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ] ]
+  in
+  assert_bool "All points same dimension" (check_same_dimension points);
+  let points_mismatch =
+    GroupProject.Point.[ create 2 [ 1.0; 1.0 ]; create 1 [ 2.0 ] ]
+  in
+  assert_bool "Points with different dimensions"
+    (not (check_same_dimension points_mismatch))
+
+let test_initialize_clusters _ =
+  let points =
+    GroupProject.Point.
+      [
+        create 2 [ 1.0; 1.0 ];
+        create 2 [ 2.0; 2.0 ];
+        create 2 [ 3.0; 3.0 ];
+        create 2 [ 10.0; 10.0 ];
+      ]
+  in
+  let clusters = initialize_clusters 2 points in
+  assert_equal 2 (List.length clusters);
+  assert_raises (Invalid_argument "k cannot be larger than number of points")
+    (fun () -> initialize_clusters 5 points)
+
+let test_assign_points _ =
+  let points =
+    GroupProject.Point.
+      [
+        create 2 [ 1.0; 1.0 ];
+        create 2 [ 2.0; 2.0 ];
+        create 2 [ 9.0; 9.0 ];
+        create 2 [ 10.0; 10.0 ];
+      ]
+  in
+  let clusters = initialize_clusters 2 points in
+  let assignments = assign_points points clusters in
+  assert_equal 2 (List.length assignments);
+  let _, assigned_to_first = List.hd assignments in
+  assert_equal 2 (List.length assigned_to_first)
+
+let test_update_centroids _ =
+  let points =
+    [ create 2 [ 0.0; 0.0 ]; create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ] ]
+  in
+  let assignments = [ (create 2 [ 0.0; 0.0 ], points) ] in
+  let centroids = update_centroids assignments in
+  assert_equal 1 (List.length centroids);
+  let updated_centroid = List.hd centroids |> get_coordinates in
+  assert_equal [ 1.0; 1.0 ] updated_centroid
+
+let test_has_converged _ =
+  let clusters1 = [ create 2 [ 0.0; 0.0 ]; create 2 [ 2.0; 2.0 ] ] in
+  let clusters2 = [ create 2 [ 0.01; 0.01 ]; create 2 [ 2.0; 2.0 ] ] in
+  let result = has_converged clusters1 clusters2 0.02 in
+  assert_bool "Clusters have converged" result
+
+let test_run_kmeans _ =
+  let points =
+    [
+      create 2 [ 0.0; 0.0 ];
+      create 2 [ 1.0; 1.0 ];
+      create 2 [ 2.0; 2.0 ];
+      create 2 [ 3.0; 3.0 ];
+    ]
+  in
+  let clusters = run_kmeans 2 points in
+  assert_equal 2 (List.length clusters)
+
+let test_total_variation _ =
+  let points =
+    [ create 2 [ 0.0; 0.0 ]; create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ] ]
+  in
+  let centroids = [ create 2 [ 0.0; 0.0 ]; create 2 [ 2.0; 2.0 ] ] in
+  let variation = total_variation points centroids in
+  assert_bool "Variation is\n   positive" (variation > 0.0)
+
+let test_find_best_set _ =
+  let points =
+    [
+      create 2 [ 0.0; 0.0 ];
+      create 2 [ 1.0; 1.0 ];
+      create 2 [ 2.0; 2.0 ];
+      create 2 [ 3.0; 3.0 ];
+    ]
+  in
+  let clusters_sets = [ run_kmeans 2 points; run_kmeans 3 points ] in
+  let best_set = find_best_set clusters_sets points in
+  assert_equal true (List.length best_set > 0)
+
+let test_find_best_k _ =
+  let points =
+    [
+      create 2 [ 0.0; 0.0 ];
+      create 2 [ 1.0; 1.0 ];
+      create 2 [ 2.0; 2.0 ];
+      create 2 [ 3.0; 3.0 ];
+    ]
+  in
+  let clusters_sets = List.map (fun k -> run_kmeans k points) [ 2; 3; 4 ] in
+  let best_k = find_best_k clusters_sets points in
+  assert_bool "Best k is positive" (best_k > 0)
+
+let create_labeled_points points labels =
+  List.map2 (fun p l -> (p, l)) points labels
+
+let test_sort_by_distance _ =
+  let query_point = create 2 [ 0.0; 0.0 ] in
+  let points =
+    [ create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ]; create 2 [ 3.0; 3.0 ] ]
+  in
+  let labeled_points = create_labeled_points points [ "A"; "B"; "C" ] in
+  let sorted_points = sort_by_distance query_point labeled_points in
+  let actual_sorted_labels = List.map snd sorted_points in
+  let expected_sorted_labels = [ "A"; "B"; "C" ] in
+
+  assert_bool "Lengths differ"
+    (List.length actual_sorted_labels = List.length expected_sorted_labels);
+
+  List.iter2
+    (fun actual expected -> assert_equal actual expected)
+    actual_sorted_labels expected_sorted_labels
+
+(* Test for k_nearest_neighbors *)
+let test_k_nearest_neighbors _ =
+  let query_point = create 2 [ 0.0; 0.0 ] in
+  let points =
+    [ create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ]; create 2 [ 3.0; 3.0 ] ]
+  in
+  let labeled_points = create_labeled_points points [ "A"; "B"; "C" ] in
+  (* Test k = 2 neighbors *)
+  let k = 2 in
+  let neighbors = k_nearest_neighbors k query_point labeled_points in
+  assert_equal k (List.length neighbors)
+
+let test_classify _ =
+  let points =
+    [
+      (create 2 [ 1.0; 1.0 ], "A");
+      (create 2 [ 2.0; 2.0 ], "B");
+      (create 2 [ 3.0; 3.0 ], "B");
+      (create 2 [ 4.0; 4.0 ], "C");
+    ]
+  in
+  let query_point = create 2 [ 0.0; 0.0 ] in
+
+  let classification_k1 = classify 1 query_point points in
+  assert_equal "A" classification_k1 ~msg:"k=1: Should classify as 'A'";
+
+  let classification_k2 = classify 2 query_point points in
+  assert_equal "A" classification_k2 ~msg:"k=2: Should classify as 'A'";
+
+  let classification_k3 = classify 3 query_point points in
+  assert_equal "B" classification_k3 ~msg:"k=3: Should classify as 'B'";
+
+  let classification_k4 = classify 4 query_point points in
+  assert_equal "B" classification_k4 ~msg:"k=4: Should classify as 'B'"
+
 let rec test_cases =
   [
     ("Test Points" >:: fun _ -> test_distance ());
     ("Test CsvReader" >:: fun _ -> test_read_points ());
+    ("Test Kmeans" >:: fun _ -> test_kmeans_initialization ());
+    "test_check_same_dimension" >:: test_check_same_dimension;
+    "test_initialize_clusters" >:: test_initialize_clusters;
+    "test_assign_points" >:: test_assign_points;
+    "test_update_centroids" >:: test_update_centroids;
+    "test_has_converged" >:: test_has_converged;
+    "test_run_kmeans" >:: test_run_kmeans;
+    "test_total_variation" >:: test_total_variation;
+    "test_find_best_set" >:: test_find_best_set;
+    "test_find_best_k" >:: test_find_best_k;
+    "test_sort_by_distance" >:: test_sort_by_distance;
+    "test_k_nearest_neighbors" >:: test_k_nearest_neighbors;
+    "test_classify" >:: test_classify;
   ]
 
 let () = run_test_tt_main ("Point Tests" >::: test_cases)
