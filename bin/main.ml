@@ -245,7 +245,7 @@ let initialize_gui () =
                   let transition5 () =
                     clean window;
                     let results_box = GPack.vbox ~packing:window#add () in
-                    let _choose_colors_title =
+                    let _results_title =
                       GMisc.label
                         ~markup:
                           "<span size='50000'><b>Your results: </b></span>"
@@ -255,7 +255,33 @@ let initialize_gui () =
                     in
 
                     (* TODO : show the results of Kmeans *)
-                    window#misc#show_all ()
+                    let stats_button =
+                      GButton.button ~label:"Show statistics"
+                        ~packing:results_box#pack ()
+                    in
+
+                    (* Transition 6 *)
+                    let transition6 () =
+                      clean window;
+                      let stats_box = GPack.vbox ~packing:window#add () in
+                      let _statistics_title =
+                        GMisc.label
+                          ~markup:
+                            "<span size='50000'><b>Your statistics: </b></span>"
+                          ~selectable:true ~yalign:0.0 ~height:50
+                          ~packing:(stats_box#pack ~expand:true ~fill:true)
+                          ()
+                      in
+                      let next_button =
+                        GButton.button ~label:"Next" ~packing:stats_box#pack ()
+                      in
+
+                      (* Transition 7 *)
+                      let transition7 () = clean window in
+                      ignore (next_button#connect#clicked ~callback:transition7)
+                    in
+                    window#misc#show_all ();
+                    ignore (stats_button#connect#clicked ~callback:transition6)
                   in
                   let run_button =
                     GButton.button ~label:"Next" ~packing:colors_box#pack ()
