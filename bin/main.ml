@@ -4,18 +4,19 @@ open GroupProject.Kmeans
 open GroupProject.Extensions
 open GMain
 
-(** ============================= GUI FUNCTIONALITY ========================= *)
-
+(* -------------------------------------------------------------------------- *)
+(* GUI FUNCTIONALITY *)
+(* -------------------------------------------------------------------------- *)
 let initialize_gui () =
   (* Initialize the GUI *)
   let init = GMain.init () in
   ignore init;
 
-  (* Create main window *)
-  let window =
-    GWindow.window ~title:"CamelClass" ~width:800 ~height:600 ~position:`CENTER
-      ()
-  in
+  (* Create the window *)
+  let window = GWindow.window ~title:"CamelClass" ~show:true () in
+
+  (* Set the window to full-screen after creation *)
+  window#fullscreen ();
 
   (* Create main vertical box for layout *)
   let vbox = GPack.vbox ~packing:window#add () in
@@ -374,9 +375,9 @@ let initialize_gui () =
   window#show ();
   Main.main ()
 
-(** ======================= I/0 FUNCTIONALITY =============================== *)
-
-(* !! ASK PROFS ABT. WHAT TYPE OF COMMENTS ARE BETTER FOR ORGANIZATION !! *)
+(* -------------------------------------------------------------------------- *)
+(* I/0 FUNCTIONALITY *)
+(* -------------------------------------------------------------------------- *)
 
 (* MARK: - Properties (Data) *)
 let default_files = Hashtbl.create 10;;
@@ -409,7 +410,7 @@ let print_help () =
   Printf.printf "%s" msg;
   Printf.printf "- %s : View all points from the CSV file.\n" display;
   Printf.printf
-    "- %s :Compute distances between points using a selected metric.\n"
+    "- %s : Compute distances between points using a selected metric.\n"
     distances;
   Printf.printf "- %s : Perform k-means. \n" kmeans;
   Printf.printf "- %s : Perform k-nearest neighbors. \n" knn;
@@ -437,7 +438,9 @@ let is_dimension d =
        positive integer";
     false
 
-(* ======================== Point Display Logic ============================= *)
+(* -------------------------------------------------------------------------- *)
+(* Point Display Logic *)
+(* -------------------------------------------------------------------------- *)
 
 (** [print_points file d] prints the points of dimension [d] in [file]. *)
 let print_points file d =
@@ -446,7 +449,9 @@ let print_points file d =
     List.iter (fun x -> Printf.printf "%s\n" x) p_list
   with _ -> failwith "Bad Points CSV"
 
-(* ================ Distance Calculation and Display Logic ================== *)
+(* -------------------------------------------------------------------------- *)
+(* Distance Calculation and Display Logic *)
+(* -------------------------------------------------------------------------- *)
 
 (** [dummy_pt dim] is a dummy point created by the user or a default dummy point
     if the user does not provide one. *)
@@ -505,11 +510,15 @@ let print_distances points dim =
   | "manhattan" -> distances points dim "manhattan"
   | _ -> Printf.printf "%s" err_msg
 
-(* ======================= Classification(s) UI Logic ======================= *)
+(* -------------------------------------------------------------------------- *)
+(* Classifications UI Logic *)
+(* -------------------------------------------------------------------------- *)
 let run_kmeans_ui csv dim = ()
 let run_knn_ui csv dim = ()
 
-(* ============================= Input Handler(s) =========================== *)
+(* -------------------------------------------------------------------------- *)
+(* Input Handlers *)
+(* -------------------------------------------------------------------------- *)
 
 (** [prompt_for_csv_file ()] is the csv file the user provided if provided with
     points in a valid format, otherwise they are assigned a random csv file with
@@ -580,7 +589,9 @@ let rec prompt_dimension csv =
           prompt_dimension csv)
   end
 
-(* ============================= Execution Logic =========================== *)
+(* -------------------------------------------------------------------------- *)
+(* Execution Logic *)
+(* -------------------------------------------------------------------------- *)
 
 (** [command_handler file dim] is the handler of the program based on the user's
     input. *)
