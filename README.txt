@@ -10,4 +10,4 @@ Assuming we're in the root directory, OCAML_3110_GP:
 dune exec bin/main.exe 
 
 - A path for a csv of 4D points if you'd like to input a csv when prompted:
-/Users/ruby/OHcaml/Ocaml_3110_GP/data/test_data_4d.csv
+data/test_data_4d.csv
