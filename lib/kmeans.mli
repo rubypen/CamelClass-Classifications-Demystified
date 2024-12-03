@@ -1,5 +1,9 @@
 open Point
 
+val check_same_dimension : Point.t list -> bool
+(** [check_same_dimension points] is whether all points in the list [points]
+    have the same number of dimensions, or if the list is empty. *)
+
 val initialize_clusters : int -> Point.t list -> Point.t list
 (** [initialize_clusters k points] randomly selects [k] points from [points] as
     initial centroids. *)
@@ -21,10 +25,13 @@ val has_converged : Point.t list -> Point.t list -> float -> bool
 (** [has_converged old_clusters new_clusters threshold] checks if the centroids
     have changed position by less than threshold. *)
 
-val run_range_kmeans :
-  Point.t list -> (Point.t -> Point.t -> float) -> Point.t list list
-(** [run_range_kmeans points distance_fn] runs kmeans on [points] for a range of
-    k values from 1-10 using the provided distance function [distance_fn]. *)
+val run_kmeans : int -> Point.t list -> Point.t list
+(** [run_kmeans k points] performs the k-means clustering algorithm on the given
+    list of points [points], with [k] classifications. *)
+
+val run_range_kmeans : Point.t list -> Point.t list list
+(** [run_range_kmeans points] runs kmeans on [points] for a range of k values
+    from 1-10. *)
 
 val run_custom_kmeans :
   int -> Point.t list -> (Point.t -> Point.t -> float) -> Point.t list
