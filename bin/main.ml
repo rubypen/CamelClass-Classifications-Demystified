@@ -253,6 +253,8 @@ let initialize_gui () =
                         ~packing:(results_box#pack ~expand:true ~fill:true)
                         ()
                     in
+
+                    (* TODO : show the results of Kmeans *)
                     window#misc#show_all ()
                   in
                   let run_button =
@@ -531,6 +533,7 @@ let print_help () =
   let knn = clr_ Bold Ylw "knn" in
   let help = clr_ Bold Ylw "help" in
   let exit = clr_ Bold Ylw "exit" in
+  let reload = clr_ Bold Ylw "reload" in
   Printf.printf "%s" msg;
   Printf.printf "- %s : View all points from the CSV file.\n" display;
   Printf.printf
@@ -538,6 +541,7 @@ let print_help () =
     distances;
   Printf.printf "- %s : Perform k-means. \n" kmeans;
   Printf.printf "- %s : Perform k-nearest neighbors. \n" knn;
+  Printf.printf "- %s :  Load a new CSV file.\n" reload;
   Printf.printf "- %s : Display HELP message. \n" help;
   Printf.printf "- %s :  Exit the program. \n" exit
 
@@ -580,59 +584,136 @@ let print_points file d =
 (** [dummy_pt dim] is a dummy point created by the user or a default dummy point
     if the user does not provide one. *)
 let dummy_pt dim =
+  let err_msg = clr_ Reg Red "Invalid Input." in
   Printf.printf
     "\n\
      Now you will specify a point to calculate distances from each point in \
-     your CSV file.\n";
+     your CSV file.\n\n";
   let prompt_coordinate name =
     let prompt =
       clr_ Und Ylw "Please specify the %s coordinate as a number:" name
     in
-    Printf.printf "\n%s " prompt;
+    Printf.printf "%s " prompt;
     let input = read_line () in
     Printf.printf "\n";
     match input with
-    | input -> ( try float_of_string input with Failure _ -> 1.0)
-    | exception End_of_file -> 1.0
+    | input -> (
+        try float_of_string input
+        with Failure _ ->
+          Printf.printf "%s Defaulting %s coordinate to 1.0\n\n" err_msg name;
+          1.0)
+    | exception End_of_file ->
+        Printf.printf "%s Defaulting %s coordinate to 1.0\n" err_msg name;
+        1.0
   in
   let coords =
     List.init dim (fun i -> prompt_coordinate ("X" ^ string_of_int (i + 1)))
   in
   create dim coords
 
-(** [distances p dim dist_metric] is the list of distance(s) between the points
-    [p] in csv and a dummy point *)
+(** [distances p dim dist_metric] is the list of tuples with distance(s)
+    calculated under [dist_metric] between the points [p] in csv and a dummy
+    point *)
 let distances p dim dist_metric =
   let p_list = CsvReaderImpl.read_points dim p in
   let dp = dummy_pt dim in
-  List.iter
+  List.map
     (fun p ->
       let distance =
         match dist_metric with
-        | "euclidian" -> euclidean_distance p dp
+        | "euclidean" -> euclidean_distance p dp
         | "manhattan" -> manhattan_distance p dp
         | _ -> failwith "Invalid distance metric"
       in
-      Printf.printf "The %s distance between %s and %s is: %5.2f\n" dist_metric
-        (to_string p) (to_string dp) distance)
+      (to_string p, to_string dp, distance))
     p_list
+
+(** [save_dists_to_csv distances metric choice] saves the distance information
+    calculated under [metric] in the format of the user's [choice]. *)
+let save_dists_to_csv distances metric choice =
+  let file_name = Printf.sprintf "./data/distance_btw_points_%s.csv" metric in
+  let csv_data =
+    match choice with
+    | "1" ->
+        List.map
+          (fun (p1, p2, dist) ->
+            Printf.sprintf "The %s distance between %s and %s is: %f" metric p1
+              p2 dist)
+          distances
+    | "2" ->
+        List.map
+          (fun (p1, p2, dist) -> Printf.sprintf "%s, %s, %f" p1 p2 dist)
+          distances
+    | _ ->
+        Printf.printf "%s\n"
+          (clr_ Bold Red "\nInvalid format selection. Not saving file.");
+        []
+  in
+  if csv_data <> [] then (
+    let oc = open_out file_name in
+    List.iter (fun line -> Printf.fprintf oc "%s\n" line) csv_data;
+    close_out oc;
+    Printf.printf "\nData saved to %s\n" (clr_ Reg Grn "%s" file_name))
+
+(** [ask_to_save_dists distances metric] prompts the user to choose whether or
+    not to save the data they retrieved from the command dists. *)
+let ask_to_save_dists distances metric =
+  let msg =
+    clr_ Bold Ylw
+      "\nDo you want to save these distances to a CSV file? (yes/no): "
+  in
+  let choose_ = clr_ Und Ylw "\nChoose the format:\n\n" in
+  let options =
+    clr_ Reg Wht
+      "1 - The [%s] distance between (p1, ..., pk) and (s1, ..., sj) is \
+       [distance]\n\n\
+       2 - (p1, ..., pk), (s1, ..., sj), distance\n\n"
+      metric
+  in
+  let prompt = clr_ Und Ylw "Enter 1 or 2:" in
+  Printf.printf "%s" msg;
+  let input = String.lowercase_ascii (read_line ()) in
+  match input with
+  | "yes" ->
+      Printf.printf "%s%s%s " choose_ options prompt;
+      let format_choice = read_line () in
+      save_dists_to_csv distances metric format_choice
+  | "no" | _ -> ()
 
 (** [print_distance] prints the distance(s) between all of the points i in i = 1
     ... n and a dummy point based on a distance metric the user chooses *)
-
 let print_distances points dim =
-  let prompt =
+  let prompt_metric =
     clr_ Reg Ylw
-      "What distance metric would you like to use ([Euclidian] or \
-       [Manhattan]): "
+      "What distance metric would you like to use ([E: Euclidean] or [M: \
+       Manhattan]): "
   in
-  let err_msg = clr_ Bold Red "The metric you have provided is invalid\n" in
-  Printf.printf "%s" prompt;
-  let distance_metric = String.lowercase_ascii (read_line ()) in
+  Printf.printf "%s" prompt_metric;
+  let dist_metric = String.lowercase_ascii (read_line ()) in
+  let distance_metric =
+    if dist_metric = "e" then "euclidean"
+    else if dist_metric = "m" then "manhattan"
+    else "invalid"
+  in
   match distance_metric with
-  | "euclidian" -> distances points dim "euclidian"
-  | "manhattan" -> distances points dim "manhattan"
-  | _ -> Printf.printf "%s" err_msg
+  | "euclidean" | "manhattan" -> begin
+      let distance_results = distances points dim distance_metric in
+      let prompt_display =
+        clr_ Bold Ylw "Would you like to see the distances? (yes/no): "
+      in
+      Printf.printf "%s" prompt_display;
+      let input = String.lowercase_ascii (read_line ()) in
+      if input = "yes" then
+        List.iter
+          (fun (p1, p2, dist) ->
+            Printf.printf "The %s distance between %s and %s is: %5.2f\n"
+              distance_metric p1 p2 dist)
+          distance_results;
+      ask_to_save_dists distance_results distance_metric
+    end
+  | _ ->
+      Printf.printf "%s"
+        (clr_ Bold Red "The metric you have provided is invalid. Try again.\n")
 
 (* -------------------------------------------------------------------------- *)
 (* Classifications UI Logic *)
@@ -679,39 +760,40 @@ let prompt_for_csv_file () =
         Printf.printf "Invalid file type. Defaulting to the default file.\n";
         "./data/test_data_2d.csv")
 
+(** [get_dimension_from_csv csv] is the dimension of points in [csv]. *)
+let get_dimension_from_csv csv =
+  try
+    let csv_data = Csv.load csv in
+    match csv_data with
+    | row :: _ ->
+        let dim = List.length row in
+        if dim > 0 then Some dim else None
+    | [] -> None
+  with _ -> None
+
 (** [prompt_dimension csv] asks the user to provide what the dimension of their
     points are if [csv] isn't a default file. *)
-let rec prompt_dimension csv =
-  let prompt_msg =
-    clr_ Reg Cyan
-      "Enter the dimension of your points (i.e., [1] [2] ... [N], where N is a \
-       positive integer): "
+let rec prompt_dimension () =
+  let csv = prompt_for_csv_file () in
+  let clr_csv = clr_ Reg Grn "%s" csv in
+  let inform_msg_p1 = clr_ Reg Cyan "The points in" in
+  let inform_msg_p2 = clr_ Reg Cyan "have the following dimension: " in
+  let inform_msg =
+    Printf.sprintf "%s [%s] %s" inform_msg_p1 clr_csv inform_msg_p2
   in
-  let invalid_dim_msg = clr_ Reg Ylw "Invalid input. " in
-  if Hashtbl.mem default_files csv then begin
-    let dim = Hashtbl.find default_files csv in
-    let dim_msg =
-      clr_ Reg Cyan "The points in %s have the following dimension: " csv
-    in
-    Printf.printf "%s %d\n" dim_msg dim;
-    dim
-  end
-  else begin
-    Printf.printf "%s" prompt_msg;
-    let input = read_line () in
-    match input with
-    | dim -> (
-        try
-          let dim = int_of_string dim in
-          if is_dimension dim then dim
-          else (
-            Printf.printf "%sPlease enter a valid dimension.\n\n"
-              invalid_dim_msg;
-            prompt_dimension csv)
-        with _ ->
-          Printf.printf "%sPlease enter a valid dimension.\n\n" invalid_dim_msg;
-          prompt_dimension csv)
-  end
+  let err_msg =
+    clr_ Bold Red
+      "Failed to determine a valid dimension from [%s]. Please check the CSV \
+       format and upload again."
+      csv
+  in
+  match get_dimension_from_csv csv with
+  | Some dim ->
+      Printf.printf "%s%d\n" inform_msg dim;
+      (csv, dim)
+  | None ->
+      Printf.printf "%s\n" err_msg;
+      prompt_dimension ()
 
 (* -------------------------------------------------------------------------- *)
 (* Execution Logic *)
@@ -734,6 +816,9 @@ let rec command_handler file dim =
   | "knn" ->
       run_knn_ui file dim;
       command_handler file dim
+  | "reload" ->
+      let new_csv, new_dimension = prompt_dimension () in
+      command_handler new_csv new_dimension
   | "help" ->
       print_help ();
       command_handler file dim
@@ -748,8 +833,7 @@ let run_io_mode () =
     clr_ Reg Grn "\nYou are now in CamelClass I/O mode !!"
   in
   Printf.printf "%s\n" welcome_to_io_msg;
-  let csv_file = prompt_for_csv_file () in
-  let dimension = prompt_dimension csv_file in
+  let csv_file, dimension = prompt_dimension () in
   command_handler csv_file dimension
 
 (** Main Function *)
