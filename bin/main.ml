@@ -13,7 +13,7 @@ let initialize_gui () =
 
   (* Create main window *)
   let window =
-    GWindow.window ~title:"CamelClass" ~width:800 ~height:800 ~position:`CENTER
+    GWindow.window ~title:"CamelClass" ~width:800 ~height:600 ~position:`CENTER
       ()
   in
 
@@ -269,10 +269,18 @@ let initialize_gui () =
           let cluster_points =
             List.filter
               (fun p ->
-                let curr_dist = euclidean_distance p cluster_point in
+                let curr_dist =
+                  if radio_euclidean#active then
+                    euclidean_distance p cluster_point
+                  else manhattan_distance p cluster_point
+                in
                 List.for_all
                   (fun other_cluster ->
-                    curr_dist <= euclidean_distance p other_cluster)
+                    curr_dist
+                    <=
+                    if radio_euclidean#active then
+                      euclidean_distance p other_cluster
+                    else manhattan_distance p other_cluster)
                   clusters)
               points
           in
@@ -316,9 +324,12 @@ let initialize_gui () =
     | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
     | points -> (
         try
-          (* Remove the distance_fn variable since it's not used *)
-          let clusters = run_custom_kmeans !current_k points in
-          (* Removed distance_fn parameter *)
+          let distance_fn =
+            if radio_euclidean#active then euclidean_distance
+            else manhattan_distance
+          in
+          buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
+          let clusters = run_custom_kmeans !current_k points distance_fn in
           buffer#insert "Clustering completed.\n";
 
           if !current_dim = 2 then begin
