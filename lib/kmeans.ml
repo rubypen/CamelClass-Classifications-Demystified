@@ -26,7 +26,7 @@ let initialize_clusters k points =
     Array.to_list (Array.sub arr (n - k) k)
   end
 
-let assign_points points clusters distance_fn =
+let assign_points points clusters =
   if not (check_same_dimension points) then
     invalid_arg "All points must have the same dimension";
   List.map
@@ -35,7 +35,8 @@ let assign_points points clusters distance_fn =
         List.filter
           (fun p ->
             List.for_all
-              (fun other_c -> distance_fn p c <= distance_fn p other_c)
+              (fun other_c ->
+                euclidean_distance p c <= euclidean_distance p other_c)
               clusters)
           points
       in
@@ -65,7 +66,7 @@ let has_converged old_clusters new_clusters threshold =
     (fun old_c new_c -> euclidean_distance old_c new_c < threshold)
     old_clusters new_clusters
 
-let run_kmeans k points distance_fn =
+let run_kmeans k points =
   if points = [] then invalid_arg "Points list cannot be empty."
   else if k > List.length points then
     invalid_arg "k cannot be larger than the number of points."
@@ -73,7 +74,7 @@ let run_kmeans k points distance_fn =
     invalid_arg "All points must have the same dimension."
   else
     let rec run old_clusters new_clusters i =
-      let assignments = assign_points points new_clusters distance_fn in
+      let assignments = assign_points points new_clusters in
       let centroid_updated = update_centroids assignments in
       if has_converged old_clusters centroid_updated 0.0001 then
         centroid_updated
@@ -82,28 +83,24 @@ let run_kmeans k points distance_fn =
     let clusters_initial = initialize_clusters k points in
     run clusters_initial clusters_initial 0
 
-let run_range_kmeans points distance_fn =
-  List.init 10 (fun x -> run_kmeans (x + 1) points distance_fn)
+let run_range_kmeans points = List.init 10 (fun x -> run_kmeans (x + 1) points)
+let run_custom_kmeans k points = run_kmeans k points
 
-let run_custom_kmeans k points distance_fn = run_kmeans k points distance_fn
-
-let total_variation points centroids distance_fn =
-  let assignments = assign_points points centroids distance_fn in
+let total_variation points centroids =
+  let assignments = assign_points points centroids in
   List.fold_left
     (fun total_variation (centroid, assigned_points) ->
       total_variation
       +. List.fold_left
            (fun acc point ->
-             let dist = distance_fn point centroid in
+             let dist = euclidean_distance point centroid in
              acc +. (dist *. dist))
            0.0 assigned_points)
     0.0 assignments
 
-let find_best_set clusters_sets points distance_fn =
+let find_best_set clusters_sets points =
   let variations =
-    List.map
-      (fun centroids -> total_variation points centroids distance_fn)
-      clusters_sets
+    List.map (fun centroids -> total_variation points centroids) clusters_sets
   in
   let best_set_index =
     List.fold_left
@@ -114,6 +111,6 @@ let find_best_set clusters_sets points distance_fn =
   in
   List.nth clusters_sets (fst best_set_index - 1)
 
-let find_best_k clusters_sets points distance_fn =
-  let best_set = find_best_set clusters_sets points distance_fn in
+let find_best_k clusters_sets points =
+  let best_set = find_best_set clusters_sets points in
   List.length best_set
