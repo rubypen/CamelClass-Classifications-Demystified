@@ -21,9 +21,6 @@ let initialize_gui () =
   (* Create main vertical box for layout *)
   let vbox = GPack.vbox ~packing:window#add () in
 
-  (* Create the stack for transitions between window views *)
-  let _stack = GPack.stack ~packing:vbox#add () in
-
   (* Add title labels *)
   let _indent =
     GMisc.label ~markup:"<span size='50000'><b></b></span>" ~selectable:true
@@ -63,24 +60,7 @@ let initialize_gui () =
     GButton.button ~label:"Start" ~packing:controls_box#pack ()
   in
 
-  (* K selection *)
-  let k_box = GPack.hbox ~packing:controls_box#pack () in
-  let _ = GMisc.label ~text:"K value: " ~packing:k_box#pack () in
-  let k_adj =
-    GData.adjustment ~lower:2. ~upper:10. ~step_incr:1. ~value:2. ()
-  in
-  let k_spin = GEdit.spin_button ~adjustment:k_adj ~packing:k_box#pack () in
-
-  (* Distance metric selection *)
-  let metric_box = GPack.hbox ~packing:controls_box#pack () in
-  let _ = GMisc.label ~text:"Distance: " ~packing:metric_box#pack () in
-  let radio_euclidean =
-    GButton.radio_button ~label:"Euclidean" ~packing:metric_box#pack ()
-  in
-  let radio_manhattan =
-    GButton.radio_button ~group:radio_euclidean#group ~label:"Manhattan"
-      ~packing:metric_box#pack ()
-  in
+  let radio_euclidean = ref false in
 
   (* Run button *)
   let run_button =
@@ -101,19 +81,6 @@ let initialize_gui () =
   let current_dim = ref 0 in
   let current_k = ref 2 in
   let current_metric = ref "Euclidean" in
-
-  (* K-value change handler *)
-  let on_k_changed () =
-    current_k := int_of_float k_adj#value;
-    buffer#insert ("\nK value changed to: " ^ string_of_int !current_k ^ "\n")
-  in
-
-  (* Distance metric change handler *)
-  let on_metric_changed () =
-    current_metric :=
-      if radio_euclidean#active then "Euclidean" else "Manhattan";
-    buffer#insert ("\nDistance metric changed to: " ^ !current_metric ^ "\n")
-  in
 
   (* File selection handler *)
   let open_file () =
@@ -182,13 +149,20 @@ let initialize_gui () =
                   ~packing:(your_points_box#pack ~expand:true ~fill:true)
                   ()
               in
+
+              (* TODO : add points graph*)
+
               (* Next button *)
               let next_button =
                 GButton.button ~label:"Next" ~packing:your_points_box#pack ()
               in
+
+              (* Transition 3*)
               let transition3 () =
                 clean window;
                 let controls_box = GPack.vbox ~packing:window#add () in
+
+                (* k selection *)
                 let _choose_k_title =
                   GMisc.label
                     ~markup:"<span size='50000'><b>Choose k value: </b></span>"
@@ -196,22 +170,100 @@ let initialize_gui () =
                     ~packing:(controls_box#pack ~expand:true ~fill:true)
                     ()
                 in
-                (* let next_button2 = GButton.button ~label:"Next"
-                   ~packing:your_points_box#pack () in let transition4 () =
-                   clean window; let k_box = GPack.vbox ~packing:window#add ()
-                   in let _ = GMisc.label ~text:"K value: " ~packing:k_box#pack
-                   () in let k_adj = GData.adjustment ~lower:2. ~upper:10.
-                   ~step_incr:1. ~value:2. () in let _k_spin = GEdit.spin_button
-                   ~adjustment:k_adj ~packing:k_box#pack () in (* K-value change
-                   handler *) let on_k_changed () = current_k := int_of_float
-                   k_adj#value; buffer#insert ("\nK value changed to: " ^
-                   string_of_int !current_k ^ "\n") in window#misc#show_all ();
-                   ignore (k_spin#connect#value_changed ~callback:on_k_changed)
-                   in *)
-                (* ignore (next_button2#connect#clicked
-                   ~callback:transition4) *)
-                ignore ()
+                let _ =
+                  GMisc.label ~text:"K value: " ~packing:controls_box#pack ()
+                in
+                let k_adj =
+                  GData.adjustment ~lower:2. ~upper:10. ~step_incr:1. ~value:2.
+                    ()
+                in
+                let k_spin =
+                  GEdit.spin_button ~adjustment:k_adj ~packing:controls_box#pack
+                    ()
+                in
+                (* K-value change handler *)
+                let on_k_changed () =
+                  current_k := int_of_float k_adj#value;
+                  buffer#insert
+                    ("\nK value changed to: " ^ string_of_int !current_k ^ "\n")
+                in
+                window#misc#show_all ();
+                ignore (k_spin#connect#value_changed ~callback:on_k_changed);
+
+                (* Distance metric selection *)
+                let _choose_distance_title =
+                  GMisc.label
+                    ~markup:
+                      "<span size='50000'><b>Choose distance metric: \
+                       </b></span>"
+                    ~selectable:true ~yalign:0.0 ~height:50
+                    ~packing:(controls_box#pack ~expand:true ~fill:true)
+                    ()
+                in
+                let _ =
+                  GMisc.label ~text:"Distance: " ~packing:controls_box#pack ()
+                in
+                let radio_euclidean_button =
+                  GButton.radio_button ~label:"Euclidean"
+                    ~packing:controls_box#pack ()
+                in
+                let radio_manhattan =
+                  GButton.radio_button ~group:radio_euclidean_button#group
+                    ~label:"Manhattan" ~packing:controls_box#pack ()
+                in
+
+                (* Distance metric change handler *)
+                let on_metric_changed () =
+                  current_metric :=
+                    if radio_euclidean_button#active then "Euclidean"
+                    else "Manhattan";
+                  if radio_euclidean_button#active then radio_euclidean := true
+                in
+                ignore
+                  (radio_euclidean_button#connect#clicked
+                     ~callback:on_metric_changed);
+                ignore
+                  (radio_manhattan#connect#clicked ~callback:on_metric_changed);
+                let next_button =
+                  GButton.button ~label:"Next" ~packing:controls_box#pack ()
+                in
+
+                (* Transition 4 *)
+                let transition4 () =
+                  clean window;
+                  let colors_box = GPack.vbox ~packing:window#add () in
+                  let _choose_colors_title =
+                    GMisc.label
+                      ~markup:
+                        "<span size='50000'><b>Choose k colors: </b></span>"
+                      ~selectable:true ~yalign:0.0 ~height:50
+                      ~packing:(colors_box#pack ~expand:true ~fill:true)
+                      ()
+                  in
+
+                  (* Transition 5 *)
+                  let transition5 () =
+                    clean window;
+                    let results_box = GPack.vbox ~packing:window#add () in
+                    let _choose_colors_title =
+                      GMisc.label
+                        ~markup:
+                          "<span size='50000'><b>Your results: </b></span>"
+                        ~selectable:true ~yalign:0.0 ~height:50
+                        ~packing:(results_box#pack ~expand:true ~fill:true)
+                        ()
+                    in
+                    window#misc#show_all ()
+                  in
+                  let run_button =
+                    GButton.button ~label:"Next" ~packing:colors_box#pack ()
+                  in
+                  ignore (run_button#connect#clicked ~callback:transition5)
+                in
+                window#misc#show_all ();
+                ignore (next_button#connect#clicked ~callback:transition4)
               in
+
               ignore (next_button#connect#clicked ~callback:transition3);
 
               run_button#misc#set_sensitive true
@@ -347,16 +399,14 @@ let initialize_gui () =
             List.filter
               (fun p ->
                 let curr_dist =
-                  if radio_euclidean#active then
-                    euclidean_distance p cluster_point
+                  if !radio_euclidean then euclidean_distance p cluster_point
                   else manhattan_distance p cluster_point
                 in
                 List.for_all
                   (fun other_cluster ->
                     curr_dist
                     <=
-                    if radio_euclidean#active then
-                      euclidean_distance p other_cluster
+                    if !radio_euclidean then euclidean_distance p other_cluster
                     else manhattan_distance p other_cluster)
                   clusters)
               points
@@ -401,16 +451,17 @@ let initialize_gui () =
     | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
     | points -> (
         try
-          let _distance_fn =
-            if radio_euclidean#active then euclidean_distance
-            else manhattan_distance
+          let distance_fn =
+            if !radio_euclidean then euclidean_distance else manhattan_distance
           in
           buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
           let clusters = run_custom_kmeans !current_k points in
           buffer#insert "Clustering completed.\n";
 
           if !current_dim = 2 then begin
-            let svg = generate_svg_visualization points clusters in
+            let svg =
+              generate_svg_visualization points (clusters distance_fn)
+            in
             let oc = open_out "clustering.svg" in
             Printf.fprintf oc "%s" svg;
             close_out oc;
@@ -427,7 +478,7 @@ let initialize_gui () =
                 ^ " center: "
                 ^ GroupProject.Point.to_string cluster
                 ^ "\n"))
-            clusters
+            (clusters distance_fn)
         with e ->
           buffer#insert
             ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"))
@@ -435,9 +486,6 @@ let initialize_gui () =
 
   (* Connect signals *)
   ignore (start_button#connect#clicked ~callback:start);
-  ignore (k_spin#connect#value_changed ~callback:on_k_changed);
-  ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
-  ignore (radio_manhattan#connect#clicked ~callback:on_metric_changed);
   ignore (run_button#connect#clicked ~callback:run_kmeans);
   ignore (window#connect#destroy ~callback:Main.quit);
 
