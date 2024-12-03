@@ -21,6 +21,9 @@ let initialize_gui () =
   (* Create main vertical box for layout *)
   let vbox = GPack.vbox ~packing:window#add () in
 
+  (* Create the stack for transitions between window views *)
+  let _stack = GPack.stack ~packing:vbox#add () in
+
   (* Add title labels *)
   let _indent =
     GMisc.label ~markup:"<span size='50000'><b></b></span>" ~selectable:true
@@ -41,6 +44,13 @@ let initialize_gui () =
       ()
   in
 
+  (* Cleaning the existing window*)
+  let clean (window : GWindow.window) =
+    match window#children with
+    | [] -> ()
+    | children -> List.iter (fun widget -> widget#destroy ()) children
+  in
+
   (* Create drawing area *)
   let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
   let () = drawing_area#misc#set_size_request ~width:600 ~height:400 () in
@@ -48,9 +58,9 @@ let initialize_gui () =
   (* Create controls area *)
   let controls_box = GPack.hbox ~packing:vbox#pack () in
 
-  (* File selection button *)
-  let file_button =
-    GButton.button ~label:"Open File" ~packing:controls_box#pack ()
+  (* Start button *)
+  let start_button =
+    GButton.button ~label:"Start" ~packing:controls_box#pack ()
   in
 
   (* K selection *)
@@ -156,6 +166,54 @@ let initialize_gui () =
                   "\n\
                    Note: Points are not 2D. Visualization will not be available.\n";
 
+              (*Transition 2*)
+              clean window;
+              let your_points_box = GPack.vbox ~packing:window#add () in
+              let _indent =
+                GMisc.label ~markup:"<span size='50000'><b></b></span>"
+                  ~selectable:true ~yalign:0.0 ~height:50
+                  ~packing:(your_points_box#pack ~expand:true ~fill:true)
+                  ()
+              in
+              let _your_points_title =
+                GMisc.label
+                  ~markup:"<span size='50000'><b>Your Points: </b></span>"
+                  ~selectable:true ~yalign:0.0 ~height:50
+                  ~packing:(your_points_box#pack ~expand:true ~fill:true)
+                  ()
+              in
+              (* Next button *)
+              let next_button =
+                GButton.button ~label:"Next" ~packing:your_points_box#pack ()
+              in
+              let transition3 () =
+                clean window;
+                let controls_box = GPack.vbox ~packing:window#add () in
+                let _choose_k_title =
+                  GMisc.label
+                    ~markup:"<span size='50000'><b>Choose k value: </b></span>"
+                    ~selectable:true ~yalign:0.0 ~height:50
+                    ~packing:(controls_box#pack ~expand:true ~fill:true)
+                    ()
+                in
+                (* let next_button2 = GButton.button ~label:"Next"
+                   ~packing:your_points_box#pack () in let transition4 () =
+                   clean window; let k_box = GPack.vbox ~packing:window#add ()
+                   in let _ = GMisc.label ~text:"K value: " ~packing:k_box#pack
+                   () in let k_adj = GData.adjustment ~lower:2. ~upper:10.
+                   ~step_incr:1. ~value:2. () in let _k_spin = GEdit.spin_button
+                   ~adjustment:k_adj ~packing:k_box#pack () in (* K-value change
+                   handler *) let on_k_changed () = current_k := int_of_float
+                   k_adj#value; buffer#insert ("\nK value changed to: " ^
+                   string_of_int !current_k ^ "\n") in window#misc#show_all ();
+                   ignore (k_spin#connect#value_changed ~callback:on_k_changed)
+                   in *)
+                (* ignore (next_button2#connect#clicked
+                   ~callback:transition4) *)
+                ignore ()
+              in
+              ignore (next_button#connect#clicked ~callback:transition3);
+
               run_button#misc#set_sensitive true
             with e ->
               buffer#set_text
@@ -167,6 +225,24 @@ let initialize_gui () =
     | `CANCEL | `DELETE_EVENT ->
         buffer#set_text "File selection cancelled.\n";
         run_button#misc#set_sensitive false
+  in
+  let start () =
+    (* Transition 1*)
+    clean window;
+    let controls_box = GPack.vbox ~packing:window#add () in
+    (* File selection buttons *)
+    let choose_file_button =
+      GButton.button ~label:"Choose file" ~packing:controls_box#pack ()
+    in
+    let _sample_points_button =
+      GButton.button ~label:"Sample points" ~packing:controls_box#pack ()
+    in
+    let _random_points_button =
+      GButton.button ~label:"Random points" ~packing:controls_box#pack ()
+    in
+    let _page1 = GMisc.label ~text:"File selection page" () in
+    window#misc#show_all ();
+    ignore (choose_file_button#connect#clicked ~callback:open_file)
   in
 
   let get_cluster_color i =
@@ -325,12 +401,12 @@ let initialize_gui () =
     | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
     | points -> (
         try
-          let distance_fn =
+          let _distance_fn =
             if radio_euclidean#active then euclidean_distance
             else manhattan_distance
           in
           buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
-          let clusters = run_custom_kmeans !current_k points distance_fn in
+          let clusters = run_custom_kmeans !current_k points in
           buffer#insert "Clustering completed.\n";
 
           if !current_dim = 2 then begin
@@ -358,7 +434,7 @@ let initialize_gui () =
   in
 
   (* Connect signals *)
-  ignore (file_button#connect#clicked ~callback:open_file);
+  ignore (start_button#connect#clicked ~callback:start);
   ignore (k_spin#connect#value_changed ~callback:on_k_changed);
   ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
   ignore (radio_manhattan#connect#clicked ~callback:on_metric_changed);
