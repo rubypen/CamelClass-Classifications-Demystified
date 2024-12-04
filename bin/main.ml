@@ -83,7 +83,7 @@ let initialize_gui () =
   let current_metric = ref "Euclidean" in
 
   (* File selection handler *)
-  let open_file () =
+  let rec open_file () =
     let dialog =
       GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select CSV File"
         ~parent:window ~position:`CENTER_ON_PARENT ()
@@ -277,7 +277,84 @@ let initialize_gui () =
                       in
 
                       (* Transition 7 *)
-                      let transition7 () = clean window in
+                      let transition7 () =
+                        clean window;
+                        let plot_box = GPack.vbox ~packing:window#add () in
+                        let _plot_title =
+                          GMisc.label
+                            ~markup:
+                              "<span size='50000'><b>Elbow plot: </b></span>"
+                            ~selectable:true ~yalign:0.0 ~height:50
+                            ~packing:(plot_box#pack ~expand:true ~fill:true)
+                            ()
+                        in
+                        let next_button =
+                          GButton.button ~label:"Next" ~packing:plot_box#pack ()
+                        in
+                        window#misc#show_all ();
+
+                        (* Transition 8 *)
+                        let transition8 () =
+                          clean window;
+                          let controls_box =
+                            GPack.vbox ~packing:window#add ()
+                          in
+                          (* Start/Quit buttons *)
+                          let start_over_button =
+                            GButton.button ~label:"Start over"
+                              ~packing:controls_box#pack ()
+                          in
+                          let quit_button =
+                            GButton.button ~label:"Quit"
+                              ~packing:controls_box#pack ()
+                          in
+                          let start_over () = start () in
+
+                          let quit () =
+                            start ();
+                            clean window;
+                            let thanks_box =
+                              GPack.vbox ~packing:window#add ()
+                            in
+                            let _thanks_title =
+                              GMisc.label
+                                ~markup:
+                                  "<span size='80000'><b>Thank you for your \
+                                   attention! </b></span>"
+                                ~selectable:true ~yalign:0.0
+                                ~packing:
+                                  (thanks_box#pack ~expand:true ~fill:true)
+                                ()
+                            in
+                            let _authors_title =
+                              GMisc.label
+                                ~markup:
+                                  "<span size='30000'><b>By: Keti Sulamanidze, \
+                                   Neha Naveen, Ruby Penafiel-Gutierrez, \
+                                   Samantha Vaca, Varvara Babii </b></span>"
+                                ~selectable:true ~yalign:0.0 ~height:50
+                                ~packing:
+                                  (thanks_box#pack ~expand:true ~fill:true)
+                                ()
+                            in
+                            let final_quit_button =
+                              GButton.button ~label:"Quit"
+                                ~packing:thanks_box#pack ()
+                            in
+                            window#misc#show_all ();
+                            ignore
+                              (final_quit_button#connect#clicked
+                                 ~callback:(fun () -> window#destroy ()))
+                          in
+                          window#misc#show_all ();
+                          ignore
+                            (start_over_button#connect#clicked
+                               ~callback:start_over);
+                          ignore (quit_button#connect#clicked ~callback:quit)
+                        in
+                        ignore
+                          (next_button#connect#clicked ~callback:transition8)
+                      in
                       ignore (next_button#connect#clicked ~callback:transition7)
                     in
                     window#misc#show_all ();
@@ -305,8 +382,7 @@ let initialize_gui () =
     | `CANCEL | `DELETE_EVENT ->
         buffer#set_text "File selection cancelled.\n";
         run_button#misc#set_sensitive false
-  in
-  let start () =
+  and start () =
     (* Transition 1*)
     clean window;
     let controls_box = GPack.vbox ~packing:window#add () in
