@@ -1,4 +1,4 @@
 (executable
  (public_name GroupProject)
  (name main)
- (libraries GroupProject))
+ (libraries GroupProject ANSITerminal lwt.unix plplot))
