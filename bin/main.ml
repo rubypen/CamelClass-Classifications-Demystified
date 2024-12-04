@@ -9,7 +9,8 @@ open GMain
 (* -------------------------------------------------------------------------- *)
 let initialize_gui () =
   (* Initialize the GUI *)
-  let _init = GMain.init () in
+  let init = GMain.init () in
+  ignore init;
 
   (* Create the window *)
   let window = GWindow.window ~title:"CamelClass" ~show:true () in
