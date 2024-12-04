@@ -4,7 +4,8 @@ Step 1)
 Install New Packages:
 $ opam update
 $ opam upgrade
-$ opam install csv ansiterminal lablgtk3
+$ opam install csv ansiterminal lablgtk3 plplot
+
 
 Step 2) 
 Access the Project:
