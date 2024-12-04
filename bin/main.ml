@@ -734,12 +734,12 @@ let initialize_gui () =
       | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
       | points -> (
           try
-            let distance_fn =
+            let dist_fn =
               if radio_euclidean#active then euclidean_distance
               else manhattan_distance
             in
             buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
-            let clusters = run_custom_kmeans !current_k points distance_fn in
+            let clusters = run_custom_kmeans !current_k points dist_fn in
             buffer#insert "Clustering completed.\n";
 
             (* let _ = generate_svg_visualization points clusters in *)
@@ -938,6 +938,20 @@ let is_dimension d =
        positive integer";
     false
 
+(* MARK: - Properties (Metadata) *)
+
+(** [get_dimension_from_csv csv] is the dimension of points in [csv]. *)
+let get_dimension_from_csv csv =
+  try
+    let csv_data = Csv.load csv in
+    let point_count = List.length csv_data in
+    match csv_data with
+    | row :: _ ->
+        let dim = List.length row in
+        if dim > 0 then Some (dim, point_count) else None
+    | [] -> None
+  with _ -> None
+
 (* -------------------------------------------------------------------------- *)
 (* Point Display Logic *)
 (* -------------------------------------------------------------------------- *)
@@ -1053,7 +1067,8 @@ let ask_to_save_dists distances metric =
   | "no" | _ -> ()
 
 (** [print_distance] prints the distance(s) between all of the points i in i = 1
-    ... n and a dummy point based on a distance metric the user chooses *)
+    ... n and a dummy point based on a distance metric the user chooses, as well
+    as prompts the user to save the data in the data directory. *)
 let print_distances points dim =
   let prompt_metric =
     clr_ Reg Ylw
@@ -1090,7 +1105,143 @@ let print_distances points dim =
 (* -------------------------------------------------------------------------- *)
 (* Classifications UI Logic *)
 (* -------------------------------------------------------------------------- *)
-let run_kmeans_ui csv dim = ()
+(* -------------------------------------------------------------------------- *)
+(* Kmeans Display Logic *)
+(* -------------------------------------------------------------------------- *)
+
+(** [prompt_for_k point_ct] is the k value to use for running kmeans. *)
+let prompt_for_k point_ct =
+  let one_cluster_msg =
+    clr_ Reg Grn
+      "Your data only contains one point, so it will be clustered into one \
+       cluster."
+  in
+  if point_ct = 1 then begin
+    Printf.printf "%s" one_cluster_msg;
+    1
+  end
+  else begin
+    let inform_msg =
+      clr_ Reg Wht
+        "\n\
+         Now you specify a value for k, the number of clusters. Your file \
+         contains %d points, so k must be between 1 and %d, inclusive.\n\n"
+        point_ct point_ct
+    in
+    let prompt_msg = clr_ Und Ylw "Enter a k value for clustering:" in
+    let err_msg = clr_ Reg Red "Invalid input." in
+    Printf.printf "%s" inform_msg;
+    Printf.printf "%s " prompt_msg;
+    let input = read_line () in
+    try
+      begin
+        let k = int_of_string input in
+        if k > point_ct then failwith "Bad k value"
+        else
+          let success_msg =
+            clr_ Reg Grn
+              "\nGreat! Your data will be clustered into %d clusters.\n" k
+          in
+          Printf.printf "%s\n" success_msg;
+          k
+      end
+    with Failure _ ->
+      Printf.printf "%s Defaulting to k = 2\n\n" err_msg;
+      2
+  end
+
+(** [pts_in_cluster cluster clusters points dist_fn] is the filtered [points]
+    list containing points closer to [cluster] than to any other cluster in
+    [clusters], as determined by [dist_fn]. *)
+let pts_in_cluster cluster clusters points dist_fn =
+  List.filter
+    (fun point ->
+      List.for_all
+        (fun other_cluster ->
+          dist_fn point cluster <= dist_fn point other_cluster)
+        clusters)
+    points
+
+(** [display_clusters clusters points dist_fn] displays the [points] in
+    [clusters]. *)
+let display_clusters clusters points dist_fn =
+  List.iteri
+    (fun cluster_ind cluster ->
+      Printf.printf "\nCluster %d:\n" (cluster_ind + 1);
+      let cluster_points = pts_in_cluster cluster clusters points dist_fn in
+      List.iter
+        (fun point -> Printf.printf "- %s\n" (to_string point))
+        cluster_points)
+    clusters
+
+(** [prompt_to_show_clusters clusters points dist_fn] asks the user if they want
+    to see their clustered data. *)
+let prompt_to_show_clusters clusters points dist_fn =
+  let prompt_msg =
+    clr_ Bold Ylw "\nWould you like to see the clustered data? (yes/no): "
+  in
+  Printf.printf "%s" prompt_msg;
+  let input = String.lowercase_ascii (read_line ()) in
+  if input = "yes" then display_clusters clusters points dist_fn else ()
+
+(** [save_clusters_to_csv clusters points dist_fn k] saves cluster data to a csv
+    file in the data directory. *)
+let save_clusters_to_csv clusters points dist_fn k =
+  let file_name = Printf.sprintf "./data/clusters_k%d.csv" k in
+  let clr_file_name = clr_ Reg Grn "%s" file_name in
+  let oc = open_out file_name in
+
+  Printf.fprintf oc "Cluster,Point\n";
+  List.iteri
+    (fun cluster_index cluster ->
+      let cluster_points = pts_in_cluster cluster clusters points dist_fn in
+      List.iter
+        (fun point ->
+          Printf.fprintf oc "%d,%s\n" (cluster_index + 1) (to_string point))
+        cluster_points)
+    clusters;
+
+  close_out oc;
+  Printf.printf "Data saved to %s\n" clr_file_name
+
+(** [ask_to_save_clusters clusters points dist_fn k] asks the user if they want
+    to save their cluster data, and does so if they answer yes. *)
+let ask_to_save_clusters clusters points dist_fn k =
+  let prompt_msg =
+    clr_ Bold Ylw
+      "\nDo you want to save the cluster data to a CSV file? (yes/no): "
+  in
+  Printf.printf "%s" prompt_msg;
+  let input = String.lowercase_ascii (read_line ()) in
+  if input = "yes" then save_clusters_to_csv clusters points dist_fn k else ()
+
+(** [run_kmeans_ui csv dim point_count] performs k-means clustering on the
+    dataset in [csv] and handles user interaction with processing and saving the
+    data. *)
+let run_kmeans_ui csv dim point_count =
+  let points = CsvReaderImpl.read_points dim csv in
+  let k = prompt_for_k point_count in
+  let progress_msg = Printf.sprintf "Running k-means with k = %d" k in
+  show_progress_bar progress_msg;
+  try
+    let complete_msg = clr_ Und Ylw "Cluster centers:" in
+    let dist_fn = euclidean_distance in
+    let clusters = run_custom_kmeans k points dist_fn in
+    Printf.printf "%s\n" complete_msg;
+
+    List.iteri
+      (fun i cluster ->
+        Printf.printf "Cluster %d : %s\n" (i + 1) (to_string cluster))
+      clusters;
+
+    prompt_to_show_clusters clusters points dist_fn;
+    ask_to_save_clusters clusters points dist_fn k
+  with _ ->
+    Printf.printf "%s unable to cluster [%s]\n" (clr_ Bold Red "Error:") csv
+
+(* -------------------------------------------------------------------------- *)
+(* KNN Display Logic *)
+(* -------------------------------------------------------------------------- *)
 let run_knn_ui csv dim = ()
 
 (* -------------------------------------------------------------------------- *)
@@ -1132,20 +1283,10 @@ let prompt_for_csv_file () =
         Printf.printf "Invalid file type. Defaulting to the default file.\n";
         "./data/test_data_2d.csv")
 
-(** [get_dimension_from_csv csv] is the dimension of points in [csv]. *)
-let get_dimension_from_csv csv =
-  try
-    let csv_data = Csv.load csv in
-    match csv_data with
-    | row :: _ ->
-        let dim = List.length row in
-        if dim > 0 then Some dim else None
-    | [] -> None
-  with _ -> None
-
-(** [prompt_dimension csv] asks the user to provide what the dimension of their
-    points are if [csv] isn't a default file. *)
-let rec prompt_dimension () =
+(** [attain_dimension csv] is the tuple containing the tuple with [csv] and its
+    corresponding dimension. Informs the user of the dimension of the points in
+    [csv]. *)
+let rec attain_dimension () =
   let csv = prompt_for_csv_file () in
   let clr_csv = clr_ Reg Grn "%s" csv in
   let inform_msg_p1 = clr_ Reg Cyan "The points in" in
@@ -1160,44 +1301,49 @@ let rec prompt_dimension () =
       csv
   in
   match get_dimension_from_csv csv with
-  | Some dim ->
+  | Some (dim, point_count) ->
       Printf.printf "%s%d\n" inform_msg dim;
-      (csv, dim)
+      (csv, dim, point_count)
   | None ->
       Printf.printf "%s\n" err_msg;
-      prompt_dimension ()
+      attain_dimension ()
 
 (* -------------------------------------------------------------------------- *)
 (* Execution Logic *)
 (* -------------------------------------------------------------------------- *)
 
-(** [command_handler file dim] is the handler of the program based on the user's
+(** [command_handler csv dim] is the handler of the program based on the user's
     input. *)
-let rec command_handler file dim =
+let rec command_handler csv dim point_count =
+  let ty_msg = clr_ Bold Magenta "Thank you for choosing CamelClass !!" in
   Printf.printf "%s" (clr_ Bold Cyan "\nEnter a command ('help' for options): ");
   match String.lowercase_ascii (read_line ()) with
   | "points" ->
-      print_points file dim;
-      command_handler file dim
+      print_points csv dim;
+      command_handler csv dim point_count
   | "dists" ->
-      print_distances file dim;
-      command_handler file dim
+      print_distances csv dim;
+      command_handler csv dim point_count
   | "kmeans" ->
-      run_kmeans_ui file dim;
-      command_handler file dim
+      run_kmeans_ui csv dim point_count;
+      command_handler csv dim point_count
   | "knn" ->
-      run_knn_ui file dim;
-      command_handler file dim
+      run_knn_ui csv dim;
+      command_handler csv dim point_count
   | "reload" ->
-      let new_csv, new_dimension = prompt_dimension () in
-      command_handler new_csv new_dimension
+      let (new_csv : string), (new_dimension : int), (new_point_count : int) =
+        attain_dimension ()
+      in
+      command_handler new_csv new_dimension new_point_count
   | "help" ->
       print_help ();
-      command_handler file dim
-  | "exit" -> Printf.printf "\n%s" (clr_ Bold Grn "Exiting program. Goodbye!\n")
+      command_handler csv dim point_count
+  | "exit" ->
+      Printf.printf "\n%s\n\n%s" ty_msg
+        (clr_ Bold Grn "Exiting program. Goodbye!\n")
   | _ ->
       Printf.printf "%s" (clr_ Bold Red "Invalid command. Try again.\n");
-      command_handler file dim
+      command_handler csv dim point_count
 
 (** [run_io_mode ()] deals with program logic. *)
 let run_io_mode () =
@@ -1205,8 +1351,8 @@ let run_io_mode () =
     clr_ Reg Grn "\nYou are now in CamelClass I/O mode !!"
   in
   Printf.printf "%s\n" welcome_to_io_msg;
-  let csv_file, dimension = prompt_dimension () in
-  command_handler csv_file dimension
+  let csv_file, dimension, point_count = attain_dimension () in
+  command_handler csv_file dimension point_count
 
 (** Main Function *)
 let () =
@@ -1216,10 +1362,18 @@ let () =
     "is a classification tool designed to simplify working with datasets in \
      OCaml."
   in
+  let authors_title =
+    clr_ Und Grn "By: Keti S., Neha N., Ruby P.G, Samantha V., Varvara B."
+  in
   let error_msg =
     clr_ Reg Red
       "Error: You have provided too many arguments. Try running something \
        like: "
+  in
+  let err_bad_csv_msg =
+    clr_ Reg Red
+      "Error: The CSV you've provided is in an invalid format. Please rerun \
+       the program once you're file is in a valid format."
   in
   let usage_msg = clr_ Reg Grn "$ dune exec bin/main.exe\n" in
   let invld_choice_msg = clr_ Reg Ylw "Invalid Input. " in
@@ -1227,6 +1381,7 @@ let () =
     if len > 1 then Printf.printf "%s\n%s" error_msg usage_msg
     else begin
       Printf.printf "%s\n" welcome_ascii;
+      Printf.printf "%s\n\n" authors_title;
       Printf.printf "%s %s\n\n" title debrief;
       Printf.printf "%s"
         (clr_ Reg Cyan "Would you like to use [GUI] or [I/O] mode? ");
@@ -1238,8 +1393,12 @@ let () =
           Printf.printf "%sDefaulting to I/O mode.\n\n" invld_choice_msg;
           run_io_mode ()
     end
-  with Sys_error _ ->
-    Printf.printf "%s"
-      (clr_ Bold Red
-         "That was incorrect/invalid input. Please rerun the program and \
-          provide valid prompts.")
+  with
+  | Sys_error _ ->
+      Printf.printf "%s"
+        (clr_ Bold Red
+           "That was incorrect/invalid input. Please rerun the program and \
+            provide valid prompts.")
+  | Failure e ->
+      if e = "Bad Points CSV" then Printf.printf "\n%s" err_bad_csv_msg
+      else failwith e
