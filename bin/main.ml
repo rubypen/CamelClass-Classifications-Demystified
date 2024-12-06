@@ -5,6 +5,25 @@ open GroupProject.Extensions
 open GMain
 open Gtk
 
+(* Random points file generator *)
+let generate () =
+  Random.self_init ();
+  let random_a_b a b = a + Random.int b in
+  let dim = random_a_b 1 3 in
+  let n = random_a_b 1 100 in
+  let points_lst = ref [] in
+  for i = 0 to n - 1 do
+    let line = ref "" in
+    for j = 0 to dim - 1 do
+      let coordinate = random_a_b 1 100 in
+      let coordinate_str = string_of_float (float_of_int coordinate /. 10.) in
+      if !line == "" then line := coordinate_str
+      else line := !line ^ ", " ^ coordinate_str
+    done;
+    points_lst := !line :: !points_lst
+  done;
+  BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
+
 (* -------------------------------------------------------------------------- *)
 (* GUI FUNCTIONALITY *)
 (* -------------------------------------------------------------------------- *)
@@ -62,27 +81,6 @@ let initialize_gui () =
 
   let rec start () =
     (* Transition 1: File selection *)
-    (* Random points file generator *)
-    Random.self_init ();
-    let random_a_b a b = a + Random.int b in
-    let generate () =
-      let dim = random_a_b 1 3 in
-      let n = random_a_b 1 100 in
-      let points_lst = ref [] in
-      for i = 0 to n - 1 do
-        let line = ref "" in
-        for j = 0 to dim - 1 do
-          let coordinate = random_a_b 1 100 in
-          let coordinate_str =
-            string_of_float (float_of_int coordinate /. 10.)
-          in
-          if !line == "" then line := coordinate_str
-          else line := !line ^ ", " ^ coordinate_str
-        done;
-        points_lst := !line :: !points_lst
-      done;
-      BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
-    in
     clean window;
     let controls_box =
       GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
@@ -988,27 +986,81 @@ let initialize_gui () =
     let quit () =
       start ();
       clean window;
-      let thanks_box = GPack.vbox ~packing:window#add () in
+      let controls_box =
+        GPack.vbox ~height:400 ~width:600 ~spacing:5 ~border_width:50
+          ~packing:window#add ()
+      in
+      controls_box#set_homogeneous true;
       let _thanks_title =
         GMisc.label
           ~markup:
             "<span size='80000'><b>Thank you for your attention! </b></span>"
-          ~selectable:true ~yalign:0.0
-          ~packing:(thanks_box#pack ~expand:true ~fill:true)
+          ~selectable:true ~xalign:0.5 ~yalign:0.5
+          ~packing:(controls_box#pack ~expand:true ~fill:true)
           ()
       in
       let _authors_title =
-        GMisc.label
-          ~markup:
-            "<span size='30000'><b>By: Keti Sulamanidze, Neha Naveen, Ruby \
-             Penafiel-Gutierrez, Samantha Vaca, Varvara Babii </b></span>"
-          ~selectable:true ~yalign:0.0 ~height:50
-          ~packing:(thanks_box#pack ~expand:true ~fill:true)
+        GMisc.label ~markup:"<span size='30000'>Authors: </span>"
+          ~selectable:true ~xalign:0.5 ~yalign:0.5
+          ~packing:(controls_box#pack ~expand:true ~fill:true)
           ()
       in
-      let final_quit_button =
-        GButton.button ~label:"Quit" ~packing:thanks_box#pack ()
+      let thanks_box =
+        GPack.hbox ~height:200 ~width:600 ~spacing:20 ~border_width:50
+          ~packing:controls_box#add ()
       in
+
+      let add_name name =
+        let column =
+          GPack.vbox ~spacing:20
+            ~packing:(thanks_box#pack ~expand:true ~fill:true)
+            ()
+        in
+        ignore
+          (GMisc.label (* ~markup:("<span size='30000'" ^ name ^ "</span>") *)
+             ~markup:name ~xalign:0.5 ~packing:column#add ())
+      in
+
+      (* Adding names of authors *)
+      add_name "Keti Sulamanidze";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Neha Naveen";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Ruby Penafiel-Gutierrez";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Samantha Vaca";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Varvara Babii";
+
+      let quit_box =
+        GPack.hbox ~height:10 ~width:80 ~spacing:5 ~packing:controls_box#add ()
+      in
+      let final_quit_button =
+        GButton.button ~label:"Quit"
+          ~packing:(quit_box#pack ~expand:false ~fill:false)
+          ()
+      in
+
       window#misc#show_all ();
       ignore
         (final_quit_button#connect#clicked ~callback:(fun () ->
