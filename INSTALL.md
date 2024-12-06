@@ -4,7 +4,7 @@ Step 1)
 Install New Packages:
 $ opam update
 $ opam upgrade
-$ opam install csv ansiterminal lablgtk3 plplot
+$ opam install csv ansiterminal lablgtk3 plplot batteries
 
 Step 2) 
 Access the Project:

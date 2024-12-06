@@ -3,6 +3,26 @@ open GroupProject.Csvreader
 open GroupProject.Kmeans
 open GroupProject.Extensions
 open GMain
+open Gtk
+
+(* Random points file generator *)
+let generate () =
+  Random.self_init ();
+  let random_a_b a b = a + Random.int b in
+  let dim = random_a_b 1 3 in
+  let n = random_a_b 1 100 in
+  let points_lst = ref [] in
+  for i = 0 to n - 1 do
+    let line = ref "" in
+    for j = 0 to dim - 1 do
+      let coordinate = random_a_b 1 100 in
+      let coordinate_str = string_of_float (float_of_int coordinate /. 10.) in
+      if !line == "" then line := coordinate_str
+      else line := !line ^ ", " ^ coordinate_str
+    done;
+    points_lst := !line :: !points_lst
+  done;
+  BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
 
 (* -------------------------------------------------------------------------- *)
 (* GUI FUNCTIONALITY *)
@@ -53,22 +73,60 @@ let initialize_gui () =
   let start_button =
     GButton.button ~label:"Start" ~packing:controls_box#pack ()
   in
+  (* let button = GButton.button ~ *)
+
+  (* start_button#misc#modify_bg [ (`NORMAL, GDraw.Color(1.0, 0.0, 0.0)) ]; *)
+  let choice = ref "" in
+  (* let filename = ref "" in *)
 
   let rec start () =
     (* Transition 1: File selection *)
     clean window;
-    let controls_box = GPack.vbox ~packing:window#add () in
+    let controls_box =
+      GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
+        ~border_width:400 ()
+    in
+    controls_box#set_homogeneous false;
+
+    (* Setting the font *)
+    let font = GPango.font_description_from_string "Arial 20" in
     let choose_file_button =
-      GButton.button ~label:"Choose file" ~packing:controls_box#pack ()
+      GButton.button ~label:"Choose file"
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
+        ()
     in
-    let _sample_points_button =
-      GButton.button ~label:"Sample points" ~packing:controls_box#pack ()
+    choose_file_button#misc#set_size_request ~height:50 ~width:50 ();
+    choose_file_button#misc#modify_font font;
+    let sample_points_button =
+      GButton.button ~label:"Sample points"
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
+        ()
     in
-    let _random_points_button =
-      GButton.button ~label:"Random points" ~packing:controls_box#pack ()
+    sample_points_button#misc#set_size_request ~height:50 ~width:50 ();
+    sample_points_button#misc#modify_font font;
+
+    let random_points_button =
+      GButton.button ~label:"Random points"
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
+        ()
     in
+    random_points_button#misc#set_size_request ~height:50 ~width:50 ();
+    random_points_button#misc#modify_font font;
+
     window#misc#show_all ();
-    ignore (choose_file_button#connect#clicked ~callback:transition3)
+    ignore
+      (choose_file_button#connect#clicked ~callback:(fun () ->
+           choice := "file";
+           transition3 ()));
+    ignore
+      (sample_points_button#connect#clicked ~callback:(fun () ->
+           choice := "sample";
+           transition3 ()));
+    ignore
+      (random_points_button#connect#clicked ~callback:(fun () ->
+           choice := "random";
+           generate ();
+           transition3 ()))
   and transition3 () =
     (* Transition 3: After file selection *)
     clean window;
@@ -456,6 +514,71 @@ let initialize_gui () =
           run_button#misc#set_sensitive false
     in
 
+    let open_sample_file () =
+      buffer#set_text "You selected points from a sample file.\n";
+      let cwd = Sys.getcwd () in
+      let sample_filename = Filename.concat cwd "data/test_data_2d.csv" in
+
+      let file_basename = Filename.basename sample_filename in
+      buffer#insert ("Loading file: " ^ sample_filename ^ "\n");
+      file_name_label#set_text file_basename;
+      let csv = Csv.load sample_filename in
+      let first_line = List.hd csv in
+      let dim = List.length first_line in
+      current_dim := dim;
+      current_points := CsvReaderImpl.read_points dim sample_filename;
+
+      buffer#insert
+        ("Successfully loaded "
+        ^ string_of_int (List.length !current_points)
+        ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
+        ^ "Sample points:\n");
+
+      let rec show_n_points points n =
+        match (points, n) with
+        | [], _ -> ()
+        | _, 0 -> ()
+        | p :: ps, n ->
+            buffer#insert (GroupProject.Point.to_string p ^ "\n");
+            show_n_points ps (n - 1)
+      in
+      show_n_points !current_points 5;
+      run_button#misc#set_sensitive true
+    in
+
+    let open_random_file () =
+      buffer#set_text "You selected points from a random points generator.\n";
+
+      let cwd = Sys.getcwd () in
+      let random_filename = Filename.concat cwd "data/random.csv" in
+
+      let file_basename = Filename.basename random_filename in
+      buffer#insert ("Loading file: " ^ random_filename ^ "\n");
+      file_name_label#set_text file_basename;
+      let csv = Csv.load random_filename in
+      let first_line = List.hd csv in
+      let dim = List.length first_line in
+      current_dim := dim;
+      current_points := CsvReaderImpl.read_points dim random_filename;
+
+      buffer#insert
+        ("Successfully loaded "
+        ^ string_of_int (List.length !current_points)
+        ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
+        ^ "Sample points:\n");
+
+      let rec show_n_points points n =
+        match (points, n) with
+        | [], _ -> ()
+        | _, 0 -> ()
+        | p :: ps, n ->
+            buffer#insert (GroupProject.Point.to_string p ^ "\n");
+            show_n_points ps (n - 1)
+      in
+      show_n_points !current_points 5;
+      run_button#misc#set_sensitive true
+    in
+
     let predefined_colors = [| 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12 |] in
 
     let create_2d_graph filename (points : t list) clusters =
@@ -777,14 +900,24 @@ let initialize_gui () =
     in
 
     (* Connect signals *)
-    ignore (file_button#connect#clicked ~callback:open_file);
+    if !choice == "sample" then begin
+      run_button#misc#set_sensitive true;
+      file_button#misc#set_sensitive false;
+      open_sample_file () (* run_button#misc#set_sensitive false *)
+    end
+    else if !choice == "random" then begin
+      run_button#misc#set_sensitive true;
+      file_button#misc#set_sensitive false;
+      open_random_file () (* run_button#misc#set_sensitive false *)
+    end
+    else ignore (file_button#connect#clicked ~callback:open_file);
     ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
     ignore (radio_manhattan#connect#clicked ~callback:on_metric_changed);
     ignore (run_button#connect#clicked ~callback:run_kmeans);
     ignore (window#connect#destroy ~callback:Main.quit);
 
     (* Initialize state *)
-    run_button#misc#set_sensitive false;
+    (* run_button#misc#set_sensitive false; *)
     buffer#set_text
       "Welcome to CamelClass K-means Clustering\n\
        Please select a data file to begin.\n";
@@ -797,11 +930,13 @@ let initialize_gui () =
     clean window;
     let stats_box = GPack.vbox ~packing:window#add () in
     let _statistics_title =
-      GMisc.label ~markup:"<span size='50000'><b>Your statistics: </b></span>"
+      GMisc.label ~markup:"<span size='50000'><b>Run KNN: </b></span>"
         ~selectable:true ~yalign:0.0 ~height:50
         ~packing:(stats_box#pack ~expand:true ~fill:true)
         ()
     in
+
+    (* TODO: add KNN *)
     let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
     window#misc#show_all ();
     ignore (next_button#connect#clicked ~callback:transition5)
@@ -810,51 +945,122 @@ let initialize_gui () =
     clean window;
     let plot_box = GPack.vbox ~packing:window#add () in
     let _plot_title =
-      GMisc.label ~markup:"<span size='50000'><b>Elbow plot: </b></span>"
+      GMisc.label ~markup:"<span size='50000'><b>Your statistics: </b></span>"
         ~selectable:true ~yalign:0.0 ~height:50
         ~packing:(plot_box#pack ~expand:true ~fill:true)
         ()
     in
+
+    (* TODO: add statistics *)
     let next_button = GButton.button ~label:"Next" ~packing:plot_box#pack () in
     window#misc#show_all ();
     ignore (next_button#connect#clicked ~callback:transition6)
   and transition6 () =
     (* Transition 8: End Screen *)
     clean window;
-    let controls_box = GPack.vbox ~packing:window#add () in
+    let controls_box =
+      GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
+        ~border_width:400 ()
+    in
+
+    (* Setting the font *)
+    let font = GPango.font_description_from_string "Arial 20" in
     (* Start/Quit buttons *)
     let start_over_button =
       GButton.button ~label:"Start over" ~packing:controls_box#pack ()
     in
+    start_over_button#misc#set_size_request ~height:70 ~width:50 ();
+    start_over_button#misc#modify_font font;
+
     let quit_button =
       GButton.button ~label:"Quit" ~packing:controls_box#pack ()
     in
-    let start_over () = start () in
+    quit_button#misc#set_size_request ~height:70 ~width:50 ();
+    quit_button#misc#modify_font font;
+
+    let start_over () =
+      choice := "file";
+      start ()
+    in
 
     let quit () =
       start ();
       clean window;
-      let thanks_box = GPack.vbox ~packing:window#add () in
+      let controls_box =
+        GPack.vbox ~height:400 ~width:600 ~spacing:5 ~border_width:50
+          ~packing:window#add ()
+      in
+      controls_box#set_homogeneous true;
       let _thanks_title =
         GMisc.label
           ~markup:
             "<span size='80000'><b>Thank you for your attention! </b></span>"
-          ~selectable:true ~yalign:0.0
-          ~packing:(thanks_box#pack ~expand:true ~fill:true)
+          ~selectable:true ~xalign:0.5 ~yalign:0.5
+          ~packing:(controls_box#pack ~expand:true ~fill:true)
           ()
       in
       let _authors_title =
-        GMisc.label
-          ~markup:
-            "<span size='30000'><b>By: Keti Sulamanidze, Neha Naveen, Ruby \
-             Penafiel-Gutierrez, Samantha Vaca, Varvara Babii </b></span>"
-          ~selectable:true ~yalign:0.0 ~height:50
-          ~packing:(thanks_box#pack ~expand:true ~fill:true)
+        GMisc.label ~markup:"<span size='30000'>Authors: </span>"
+          ~selectable:true ~xalign:0.5 ~yalign:0.5
+          ~packing:(controls_box#pack ~expand:true ~fill:true)
           ()
       in
-      let final_quit_button =
-        GButton.button ~label:"Quit" ~packing:thanks_box#pack ()
+      let thanks_box =
+        GPack.hbox ~height:200 ~width:600 ~spacing:20 ~border_width:50
+          ~packing:controls_box#add ()
       in
+
+      let add_name name =
+        let column =
+          GPack.vbox ~spacing:20
+            ~packing:(thanks_box#pack ~expand:true ~fill:true)
+            ()
+        in
+        ignore
+          (GMisc.label (* ~markup:("<span size='30000'" ^ name ^ "</span>") *)
+             ~markup:name ~xalign:0.5 ~packing:column#add ())
+      in
+
+      (* Adding names of authors *)
+      add_name "Keti Sulamanidze";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Neha Naveen";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Ruby Penafiel-Gutierrez";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Samantha Vaca";
+      let divider =
+        GMisc.separator `HORIZONTAL
+          ~packing:(thanks_box#pack ~expand:false ~fill:true)
+          ()
+      in
+      divider#misc#set_size_request ~height:4 ();
+      add_name "Varvara Babii";
+
+      let quit_box =
+        GPack.hbox ~height:10 ~width:80 ~spacing:5 ~packing:controls_box#add ()
+      in
+      let final_quit_button =
+        GButton.button ~label:"Quit"
+          ~packing:(quit_box#pack ~expand:false ~fill:false)
+          ()
+      in
+
       window#misc#show_all ();
       ignore
         (final_quit_button#connect#clicked ~callback:(fun () ->
