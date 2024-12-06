@@ -3,6 +3,7 @@ open GroupProject.Csvreader
 open GroupProject.Kmeans
 open GroupProject.Extensions
 open GMain
+open Gtk
 
 (* -------------------------------------------------------------------------- *)
 (* GUI FUNCTIONALITY *)
@@ -53,22 +54,45 @@ let initialize_gui () =
   let start_button =
     GButton.button ~label:"Start" ~packing:controls_box#pack ()
   in
+  (* let button = GButton.button ~ *)
+
+  (* start_button#misc#modify_bg [ (`NORMAL, GDraw.Color(1.0, 0.0, 0.0)) ]; *)
+  let sampletf = ref false in
+  let filename = ref "" in
 
   let rec start () =
     (* Transition 1: File selection *)
     clean window;
     let controls_box = GPack.vbox ~packing:window#add () in
+    controls_box#set_homogeneous false;
+    (* let alignment = GWidget.alignment ~xalign:0.5 ~yalign:0.5 () in *)
     let choose_file_button =
-      GButton.button ~label:"Choose file" ~packing:controls_box#pack ()
+      GButton.button (* ~color:(Gdk.Color.color_parse "blue") *)
+        ~label:"Choose file"
+        ~packing:(controls_box#pack ~expand:false ~fill:false)
+        ()
     in
-    let _sample_points_button =
-      GButton.button ~label:"Sample points" ~packing:controls_box#pack ()
+    choose_file_button#misc#set_size_request ~height:60 ~width:50 ();
+    let sample_points_button =
+      GButton.button ~label:"Sample points"
+        ~packing:(controls_box#pack ~expand:false ~fill:false)
+        ()
     in
-    let _random_points_button =
-      GButton.button ~label:"Random points" ~packing:controls_box#pack ()
+    sample_points_button#misc#set_size_request ~height:60 ~width:50 ();
+
+    let random_points_button =
+      GButton.button ~label:"Random points"
+        ~packing:(controls_box#pack ~expand:false ~fill:false)
+        ()
     in
+    random_points_button#misc#set_size_request ~height:60 ~width:50 ();
+
     window#misc#show_all ();
-    ignore (choose_file_button#connect#clicked ~callback:transition3)
+    ignore (choose_file_button#connect#clicked ~callback:transition3);
+    ignore
+      (sample_points_button#connect#clicked ~callback:(fun () ->
+           sampletf := true;
+           transition3 ()))
   and transition3 () =
     (* Transition 3: After file selection *)
     clean window;
@@ -403,12 +427,12 @@ let initialize_gui () =
       dialog#add_filter filter;
 
       let result = dialog#run () in
-      let filename = dialog#filename in
+      (* let filename = dialog#filename in *)
       dialog#destroy ();
 
       match result with
       | `OPEN -> (
-          match filename with
+          match dialog#filename with
           | Some file -> (
               let file_basename = Filename.basename file in
               buffer#set_text ("Loading file: " ^ file ^ "\n");
@@ -441,6 +465,7 @@ let initialize_gui () =
                     "\n\
                      Note: Points are not 2D. Visualization will not be \
                      available.\n";
+                filename := file;
 
                 run_button#misc#set_sensitive true
               with e ->
@@ -454,6 +479,43 @@ let initialize_gui () =
       | `CANCEL | `DELETE_EVENT ->
           buffer#set_text "File selection cancelled.\n";
           run_button#misc#set_sensitive false
+    in
+
+    let open_sample_file () =
+      (* let cwd = Sys.getcwd () in
+
+         buffer#set_text ("Current working directory: " ^ cwd ^ "\n"); *)
+      (* buffer#set_text "Hello"; *)
+      let cwd = Sys.getcwd () in
+      buffer#set_text ("Current working directory: " ^ cwd ^ "\n");
+      let new_filename = "../data/test_data_2d.csv" in
+      (* buffer#insert ("Filename: " ^ new_filename ^ "\n"); *)
+
+      let file_basename = Filename.basename new_filename in
+      buffer#insert ("Loading file: " ^ new_filename ^ "\n");
+      file_name_label#set_text file_basename;
+      let csv = Csv.load new_filename in
+      let first_line = List.hd csv in
+      let dim = List.length first_line in
+      current_dim := dim;
+      current_points := CsvReaderImpl.read_points dim new_filename;
+
+      buffer#insert
+        ("Successfully loaded "
+        ^ string_of_int (List.length !current_points)
+        ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
+        ^ "Sample points:\n");
+
+      let rec show_n_points points n =
+        match (points, n) with
+        | [], _ -> ()
+        | _, 0 -> ()
+        | p :: ps, n ->
+            buffer#insert (GroupProject.Point.to_string p ^ "\n");
+            show_n_points ps (n - 1)
+      in
+      show_n_points !current_points 5;
+      run_button#misc#set_sensitive true
     in
 
     let predefined_colors = [| 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12 |] in
@@ -730,6 +792,7 @@ let initialize_gui () =
 
     (* Run k-means handler *)
     let run_kmeans () =
+      (* if !sampletf = true then open_sample_file (); *)
       match !current_points with
       | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
       | points -> (
@@ -777,7 +840,12 @@ let initialize_gui () =
     in
 
     (* Connect signals *)
-    ignore (file_button#connect#clicked ~callback:open_file);
+    if !sampletf = true then begin
+      run_button#misc#set_sensitive true;
+      file_button#misc#set_sensitive false;
+      open_sample_file ()
+    end
+    else ignore (file_button#connect#clicked ~callback:open_file);
     ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
     ignore (radio_manhattan#connect#clicked ~callback:on_metric_changed);
     ignore (run_button#connect#clicked ~callback:run_kmeans);
@@ -829,7 +897,10 @@ let initialize_gui () =
     let quit_button =
       GButton.button ~label:"Quit" ~packing:controls_box#pack ()
     in
-    let start_over () = start () in
+    let start_over () =
+      sampletf := false;
+      start ()
+    in
 
     let quit () =
       start ();
