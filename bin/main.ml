@@ -57,41 +57,77 @@ let initialize_gui () =
   (* let button = GButton.button ~ *)
 
   (* start_button#misc#modify_bg [ (`NORMAL, GDraw.Color(1.0, 0.0, 0.0)) ]; *)
-  let sampletf = ref false in
-  let filename = ref "" in
+  let choice = ref "" in
+  (* let filename = ref "" in *)
 
   let rec start () =
     (* Transition 1: File selection *)
+    (* Random points file generator *)
+    Random.self_init ();
+    let random_a_b a b = a + Random.int b in
+    let generate () =
+      let dim = random_a_b 1 3 in
+      let n = random_a_b 1 100 in
+      let points_lst = ref [] in
+      for i = 0 to n - 1 do
+        let line = ref "" in
+        for j = 0 to dim - 1 do
+          let coordinate = random_a_b 1 100 in
+          let coordinate_str =
+            string_of_float (float_of_int coordinate /. 10.)
+          in
+          if !line == "" then line := coordinate_str
+          else line := !line ^ ", " ^ coordinate_str
+        done;
+        points_lst := !line :: !points_lst
+      done;
+      BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
+    in
     clean window;
-    let controls_box = GPack.vbox ~packing:window#add () in
+    let controls_box =
+      GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
+        ~border_width:400 ()
+    in
     controls_box#set_homogeneous false;
-    (* let alignment = GWidget.alignment ~xalign:0.5 ~yalign:0.5 () in *)
+
+    (* Setting the font *)
+    let font = GPango.font_description_from_string "Arial 20" in
     let choose_file_button =
-      GButton.button (* ~color:(Gdk.Color.color_parse "blue") *)
-        ~label:"Choose file"
-        ~packing:(controls_box#pack ~expand:false ~fill:true)
+      GButton.button ~label:"Choose file"
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
-    choose_file_button#misc#set_size_request ~height:60 ~width:50 ();
+    choose_file_button#misc#set_size_request ~height:50 ~width:50 ();
+    choose_file_button#misc#modify_font font;
     let sample_points_button =
       GButton.button ~label:"Sample points"
-        ~packing:(controls_box#pack ~expand:false ~fill:true)
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
-    sample_points_button#misc#set_size_request ~height:60 ~width:50 ();
+    sample_points_button#misc#set_size_request ~height:50 ~width:50 ();
+    sample_points_button#misc#modify_font font;
 
     let random_points_button =
       GButton.button ~label:"Random points"
-        ~packing:(controls_box#pack ~expand:false ~fill:true)
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
-    random_points_button#misc#set_size_request ~height:60 ~width:50 ();
+    random_points_button#misc#set_size_request ~height:50 ~width:50 ();
+    random_points_button#misc#modify_font font;
 
     window#misc#show_all ();
-    ignore (choose_file_button#connect#clicked ~callback:transition3);
+    ignore
+      (choose_file_button#connect#clicked ~callback:(fun () ->
+           choice := "file";
+           transition3 ()));
     ignore
       (sample_points_button#connect#clicked ~callback:(fun () ->
-           sampletf := true;
+           choice := "sample";
+           transition3 ()));
+    ignore
+      (random_points_button#connect#clicked ~callback:(fun () ->
+           choice := "random";
+           generate ();
            transition3 ()))
   and transition3 () =
     (* Transition 3: After file selection *)
@@ -427,12 +463,12 @@ let initialize_gui () =
       dialog#add_filter filter;
 
       let result = dialog#run () in
-      (* let filename = dialog#filename in *)
+      let filename = dialog#filename in
       dialog#destroy ();
 
       match result with
       | `OPEN -> (
-          match dialog#filename with
+          match filename with
           | Some file -> (
               let file_basename = Filename.basename file in
               buffer#set_text ("Loading file: " ^ file ^ "\n");
@@ -465,7 +501,6 @@ let initialize_gui () =
                     "\n\
                      Note: Points are not 2D. Visualization will not be \
                      available.\n";
-                filename := file;
 
                 run_button#misc#set_sensitive true
               with e ->
@@ -482,17 +517,51 @@ let initialize_gui () =
     in
 
     let open_sample_file () =
+      buffer#set_text "You selected points from a sample file.\n";
       let cwd = Sys.getcwd () in
-      let new_filename = Filename.concat cwd "data/test_data_2d.csv" in
+      let sample_filename = Filename.concat cwd "data/test_data_2d.csv" in
 
-      let file_basename = Filename.basename new_filename in
-      buffer#set_text ("Loading file: " ^ new_filename ^ "\n");
+      let file_basename = Filename.basename sample_filename in
+      buffer#insert ("Loading file: " ^ sample_filename ^ "\n");
       file_name_label#set_text file_basename;
-      let csv = Csv.load new_filename in
+      let csv = Csv.load sample_filename in
       let first_line = List.hd csv in
       let dim = List.length first_line in
       current_dim := dim;
-      current_points := CsvReaderImpl.read_points dim new_filename;
+      current_points := CsvReaderImpl.read_points dim sample_filename;
+
+      buffer#insert
+        ("Successfully loaded "
+        ^ string_of_int (List.length !current_points)
+        ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
+        ^ "Sample points:\n");
+
+      let rec show_n_points points n =
+        match (points, n) with
+        | [], _ -> ()
+        | _, 0 -> ()
+        | p :: ps, n ->
+            buffer#insert (GroupProject.Point.to_string p ^ "\n");
+            show_n_points ps (n - 1)
+      in
+      show_n_points !current_points 5;
+      run_button#misc#set_sensitive true
+    in
+
+    let open_random_file () =
+      buffer#set_text "You selected points from a random points generator.\n";
+
+      let cwd = Sys.getcwd () in
+      let random_filename = Filename.concat cwd "data/random.csv" in
+
+      let file_basename = Filename.basename random_filename in
+      buffer#insert ("Loading file: " ^ random_filename ^ "\n");
+      file_name_label#set_text file_basename;
+      let csv = Csv.load random_filename in
+      let first_line = List.hd csv in
+      let dim = List.length first_line in
+      current_dim := dim;
+      current_points := CsvReaderImpl.read_points dim random_filename;
 
       buffer#insert
         ("Successfully loaded "
@@ -786,7 +855,6 @@ let initialize_gui () =
 
     (* Run k-means handler *)
     let run_kmeans () =
-      (* if !sampletf = true then open_sample_file (); *)
       match !current_points with
       | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
       | points -> (
@@ -834,10 +902,15 @@ let initialize_gui () =
     in
 
     (* Connect signals *)
-    if !sampletf = true then begin
+    if !choice == "sample" then begin
       run_button#misc#set_sensitive true;
       file_button#misc#set_sensitive false;
-      open_sample_file ()
+      open_sample_file () (* run_button#misc#set_sensitive false *)
+    end
+    else if !choice == "random" then begin
+      run_button#misc#set_sensitive true;
+      file_button#misc#set_sensitive false;
+      open_random_file () (* run_button#misc#set_sensitive false *)
     end
     else ignore (file_button#connect#clicked ~callback:open_file);
     ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
@@ -859,11 +932,13 @@ let initialize_gui () =
     clean window;
     let stats_box = GPack.vbox ~packing:window#add () in
     let _statistics_title =
-      GMisc.label ~markup:"<span size='50000'><b>Your statistics: </b></span>"
+      GMisc.label ~markup:"<span size='50000'><b>Run KNN: </b></span>"
         ~selectable:true ~yalign:0.0 ~height:50
         ~packing:(stats_box#pack ~expand:true ~fill:true)
         ()
     in
+
+    (* TODO: add KNN *)
     let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
     window#misc#show_all ();
     ignore (next_button#connect#clicked ~callback:transition5)
@@ -872,27 +947,41 @@ let initialize_gui () =
     clean window;
     let plot_box = GPack.vbox ~packing:window#add () in
     let _plot_title =
-      GMisc.label ~markup:"<span size='50000'><b>Elbow plot: </b></span>"
+      GMisc.label ~markup:"<span size='50000'><b>Your statistics: </b></span>"
         ~selectable:true ~yalign:0.0 ~height:50
         ~packing:(plot_box#pack ~expand:true ~fill:true)
         ()
     in
+
+    (* TODO: add statistics *)
     let next_button = GButton.button ~label:"Next" ~packing:plot_box#pack () in
     window#misc#show_all ();
     ignore (next_button#connect#clicked ~callback:transition6)
   and transition6 () =
     (* Transition 8: End Screen *)
     clean window;
-    let controls_box = GPack.vbox ~packing:window#add () in
+    let controls_box =
+      GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
+        ~border_width:400 ()
+    in
+
+    (* Setting the font *)
+    let font = GPango.font_description_from_string "Arial 20" in
     (* Start/Quit buttons *)
     let start_over_button =
       GButton.button ~label:"Start over" ~packing:controls_box#pack ()
     in
+    start_over_button#misc#set_size_request ~height:70 ~width:50 ();
+    start_over_button#misc#modify_font font;
+
     let quit_button =
       GButton.button ~label:"Quit" ~packing:controls_box#pack ()
     in
+    quit_button#misc#set_size_request ~height:70 ~width:50 ();
+    quit_button#misc#modify_font font;
+
     let start_over () =
-      sampletf := false;
+      choice := "file";
       start ()
     in
 
