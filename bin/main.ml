@@ -69,20 +69,20 @@ let initialize_gui () =
     let choose_file_button =
       GButton.button (* ~color:(Gdk.Color.color_parse "blue") *)
         ~label:"Choose file"
-        ~packing:(controls_box#pack ~expand:false ~fill:false)
+        ~packing:(controls_box#pack ~expand:false ~fill:true)
         ()
     in
     choose_file_button#misc#set_size_request ~height:60 ~width:50 ();
     let sample_points_button =
       GButton.button ~label:"Sample points"
-        ~packing:(controls_box#pack ~expand:false ~fill:false)
+        ~packing:(controls_box#pack ~expand:false ~fill:true)
         ()
     in
     sample_points_button#misc#set_size_request ~height:60 ~width:50 ();
 
     let random_points_button =
       GButton.button ~label:"Random points"
-        ~packing:(controls_box#pack ~expand:false ~fill:false)
+        ~packing:(controls_box#pack ~expand:false ~fill:true)
         ()
     in
     random_points_button#misc#set_size_request ~height:60 ~width:50 ();
@@ -482,17 +482,11 @@ let initialize_gui () =
     in
 
     let open_sample_file () =
-      (* let cwd = Sys.getcwd () in
-
-         buffer#set_text ("Current working directory: " ^ cwd ^ "\n"); *)
-      (* buffer#set_text "Hello"; *)
       let cwd = Sys.getcwd () in
-      buffer#set_text ("Current working directory: " ^ cwd ^ "\n");
-      let new_filename = "../data/test_data_2d.csv" in
-      (* buffer#insert ("Filename: " ^ new_filename ^ "\n"); *)
+      let new_filename = Filename.concat cwd "data/test_data_2d.csv" in
 
       let file_basename = Filename.basename new_filename in
-      buffer#insert ("Loading file: " ^ new_filename ^ "\n");
+      buffer#set_text ("Loading file: " ^ new_filename ^ "\n");
       file_name_label#set_text file_basename;
       let csv = Csv.load new_filename in
       let first_line = List.hd csv in
@@ -852,7 +846,7 @@ let initialize_gui () =
     ignore (window#connect#destroy ~callback:Main.quit);
 
     (* Initialize state *)
-    run_button#misc#set_sensitive false;
+    (* run_button#misc#set_sensitive false; *)
     buffer#set_text
       "Welcome to CamelClass K-means Clustering\n\
        Please select a data file to begin.\n";
