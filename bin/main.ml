@@ -710,34 +710,141 @@ let initialize_gui () =
 
     let next_button = GButton.button ~label:"Next" ~packing:vbox#pack () in
     window#misc#show_all ();
-    ignore (next_button#connect#clicked ~callback:transition4)
-  and transition4 () =
+    ignore
+      (next_button#connect#clicked ~callback:(fun () ->
+           transition4 !current_k !current_points))
+  and transition4 current_k current_points =
     (* Transition 6: Show statistics *)
     clean window;
     let stats_box = GPack.vbox ~packing:window#add () in
     let _statistics_title =
-      GMisc.label ~markup:"<span size='50000'><b>Run KNN: </b></span>"
-        ~selectable:true ~yalign:0.0 ~height:50
+      GMisc.label
+        ~markup:"<span size='50000'><b>K-Means Cluster Statistics</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:50
         ~packing:(stats_box#pack ~expand:true ~fill:true)
         ()
     in
 
-    (* TODO: add KNN *)
+    let clusters =
+      run_custom_kmeans current_k current_points euclidean_distance
+    in
+    let cluster_stats_box = GPack.vbox ~packing:stats_box#add ~spacing:20 () in
+
+    let total_points = List.length current_points in
+    let _total_points_label =
+      GMisc.label
+        ~markup:
+          ("<span size='20000'>Total Points: " ^ string_of_int total_points
+         ^ "</span>")
+        ~selectable:false ~xalign:0.5 ~yalign:0.5
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let _cluster_count_label =
+      GMisc.label
+        ~markup:
+          ("<span size='20000'>Number of Clusters: "
+          ^ string_of_int (List.length clusters)
+          ^ "</span>")
+        ~selectable:false ~xalign:0.5 ~yalign:0.5
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let total_variance =
+      total_variation current_points clusters euclidean_distance
+    in
+    let _total_variance_label =
+      GMisc.label
+        ~markup:
+          ("<span size='20000'>Total Variance: "
+          ^ string_of_float total_variance
+          ^ "</span>")
+        ~selectable:false ~xalign:0.5 ~yalign:0.5
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let _divider =
+      GMisc.separator `HORIZONTAL
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:true)
+        ()
+    in
+    _divider#misc#set_size_request ~height:2 ();
+
+    List.iteri
+      (fun i cluster ->
+        let cluster_points =
+          let pts_in_cluster cluster clusters points dist_fn =
+            List.filter
+              (fun point ->
+                List.for_all
+                  (fun other_cluster ->
+                    dist_fn point cluster <= dist_fn point other_cluster)
+                  clusters)
+              points
+          in
+          pts_in_cluster cluster clusters current_points euclidean_distance
+        in
+        let _cluster_label =
+          GMisc.label
+            ~markup:
+              ("<span size='20000'><b>Cluster "
+              ^ string_of_int (i + 1)
+              ^ ":</b></span>")
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        let _cluster_size_label =
+          GMisc.label
+            ~markup:("Size: " ^ string_of_int (List.length cluster_points))
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        let _cluster_centroid_label =
+          GMisc.label
+            ~markup:("Centroid: " ^ GroupProject.Point.to_string cluster)
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        let cluster_variance =
+          total_variation current_points [ cluster ] euclidean_distance
+        in
+        let _cluster_variance_label =
+          GMisc.label
+            ~markup:("Variance: " ^ string_of_float cluster_variance)
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        ())
+      clusters;
+
     let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
     window#misc#show_all ();
-    ignore (next_button#connect#clicked ~callback:transition5)
-  and transition5 () =
+    ignore
+      (next_button#connect#clicked ~callback:(fun () ->
+           transition5 current_k current_points))
+  and transition5 current_k current_points =
     (* Transition 7: Plotting *)
     clean window;
     let plot_box = GPack.vbox ~packing:window#add () in
     let _plot_title =
-      GMisc.label ~markup:"<span size='50000'><b>Your statistics: </b></span>"
-        ~selectable:true ~yalign:0.0 ~height:50
+      GMisc.label ~markup:"<span size='50000'><b>KNN/b></span>" ~selectable:true
+        ~yalign:0.0 ~height:50
         ~packing:(plot_box#pack ~expand:true ~fill:true)
         ()
     in
 
-    (* TODO: add statistics *)
+    let clusters =
+      run_custom_kmeans current_k current_points euclidean_distance
+    in
+    let _ = create_2d_graph "graph.png" current_points clusters in
+
     let next_button = GButton.button ~label:"Next" ~packing:plot_box#pack () in
     window#misc#show_all ();
     ignore (next_button#connect#clicked ~callback:transition6)
