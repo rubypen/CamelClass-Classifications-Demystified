@@ -2,6 +2,7 @@ open GroupProject.Point
 open GroupProject.Csvreader
 open GroupProject.Kmeans
 open GroupProject.Extensions
+open GroupProject.Visualizations
 open GMain
 open Gtk
 
@@ -24,6 +25,23 @@ let generate () =
   done;
   BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
 
+(* Find a widget by name *)
+let find_widget_by_name parent name widget_type =
+  let rec find_in_container container =
+    let children = container#children in
+    List.find_opt
+      (fun child ->
+        try
+          match child#misc#get with
+          | Some w -> w#name = name
+          | None -> false
+        with _ -> false)
+      children
+  in
+  match find_in_container parent with
+  | Some w -> Some (widget_type w)
+  | None -> None
+
 (* -------------------------------------------------------------------------- *)
 (* GUI FUNCTIONALITY *)
 (* -------------------------------------------------------------------------- *)
@@ -34,9 +52,10 @@ let initialize_gui () =
 
   (* Create the window *)
   let window = GWindow.window ~title:"CamelClass" ~show:true () in
-
-  (* Set the window to full-screen after creation *)
   window#fullscreen ();
+
+  (* Create choice reference *)
+  let choice = ref "" in
 
   (* Create main vertical box for layout *)
   let vbox = GPack.vbox ~packing:window#add () in
@@ -55,13 +74,6 @@ let initialize_gui () =
       ()
   in
 
-  (* Cleaning the existing window*)
-  let clean (window : GWindow.window) =
-    match window#children with
-    | [] -> ()
-    | children -> List.iter (fun widget -> widget#destroy ()) children
-  in
-
   (* Create drawing area *)
   let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
   drawing_area#misc#set_size_request ~width:600 ~height:400 ();
@@ -73,14 +85,16 @@ let initialize_gui () =
   let start_button =
     GButton.button ~label:"Start" ~packing:controls_box#pack ()
   in
-  (* let button = GButton.button ~ *)
 
-  (* start_button#misc#modify_bg [ (`NORMAL, GDraw.Color(1.0, 0.0, 0.0)) ]; *)
-  let choice = ref "" in
-  (* let filename = ref "" in *)
+  (* Cleaning the existing window*)
+  let clean (window : GWindow.window) =
+    match window#children with
+    | [] -> ()
+    | children -> List.iter (fun widget -> widget#destroy ()) children
+  in
 
   let rec start () =
-    (* Transition 1: File selection *)
+    (* Clean existing window *)
     clean window;
     let controls_box =
       GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
@@ -97,6 +111,7 @@ let initialize_gui () =
     in
     choose_file_button#misc#set_size_request ~height:50 ~width:50 ();
     choose_file_button#misc#modify_font font;
+
     let sample_points_button =
       GButton.button ~label:"Sample points"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
@@ -436,7 +451,11 @@ let initialize_gui () =
     (* Store current points and dimension *)
     let current_points = ref [] in
     let current_dim = ref 0 in
-    let current_k = ref 2 in
+    let current_k = ref 3 in
+    (* Update current_k when k_spin value changes *)
+    ignore
+      (k_spin#connect#value_changed ~callback:(fun () ->
+           current_k := int_of_float k_spin#value));
     let current_metric = ref "Euclidean" in
 
     (* Distance metric change handler *)
@@ -579,272 +598,19 @@ let initialize_gui () =
       run_button#misc#set_sensitive true
     in
 
-    let predefined_colors = [| 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12 |] in
-
     let create_2d_graph filename (points : t list) clusters =
-      let max_x = ref (-.max_float) in
-      let min_x = ref max_float in
-      let max_y = ref (-.max_float) in
-      let min_y = ref max_float in
-
-      let x = Array.make (List.length points) 0.0 in
-      let y = Array.make (List.length points) 0.0 in
-
-      for i = 0 to List.length points - 1 do
-        let coords = get_coordinates (List.nth points i) in
-        let curr_x = List.nth coords 0 in
-        let curr_y = List.nth coords 1 in
-        x.(i) <- curr_x;
-        y.(i) <- curr_y;
-        min_x := min !min_x curr_x;
-        max_x := max !max_x curr_x;
-        min_y := min !min_y curr_y;
-        max_y := max !max_y curr_y
-      done;
-
-      let open Plplot in
-      plsdev "pngcairo";
-      plsfnam filename;
-      plinit ();
-
-      let x_range = !max_x -. !min_x in
-      let y_range = !max_y -. !min_y in
-
-      (* Initialize PLplot *)
-      plenv
-        (!min_x -. (0.1 *. x_range))
-        (!max_x +. (0.1 *. x_range))
-        (!min_y -. (0.1 *. y_range))
-        (!max_y +. (0.1 *. y_range))
-        0 0;
-      pllab "X-axis" "Y-axis" "2D Graph";
-
-      (* Plot points for each cluster *)
-      List.iteri
-        (fun i cluster_point ->
-          let color_index =
-            predefined_colors.(i mod Array.length predefined_colors)
-          in
-          plcol0 color_index;
-
-          (* Get the points by clusters! *)
-          let cluster_points =
-            List.filter
-              (fun p ->
-                let curr_dist =
-                  if radio_euclidean#active then
-                    euclidean_distance p cluster_point
-                  else manhattan_distance p cluster_point
-                in
-                List.for_all
-                  (fun other_cluster ->
-                    curr_dist
-                    <=
-                    if radio_euclidean#active then
-                      euclidean_distance p other_cluster
-                    else manhattan_distance p other_cluster)
-                  clusters)
-              points
-          in
-
-          let x_cluster_points =
-            Array.of_list
-              (List.map
-                 (fun p -> List.nth (get_coordinates p) 0)
-                 cluster_points)
-          in
-          let y_cluster_points =
-            Array.of_list
-              (List.map
-                 (fun p -> List.nth (get_coordinates p) 1)
-                 cluster_points)
-          in
-
-          plpoin x_cluster_points y_cluster_points 9;
-
-          let center_coords = get_coordinates cluster_point in
-          let cx = List.nth center_coords 0 in
-          let cy = List.nth center_coords 1 in
-          plcol0 3;
-          plpoin [| cx |] [| cy |] 5)
-        clusters;
-
-      plend ();
-      Printf.printf "2D plot saved to %s\n" filename
+      GroupProject.Visualizations.create_2d_graph filename points clusters
     in
 
     let create_1d_graph filename (points : t list) clusters =
-      let max_x = ref (-.max_float) in
-      let min_x = ref max_float in
-
-      (* Convert 1D points list to Array *)
-      let x = Array.make (List.length points) 0.0 in
-
-      (* Create an array from the existing points and find the max and min
-         bounds*)
-      for i = 0 to List.length points - 1 do
-        let coords = get_coordinates (List.nth points i) in
-        let curr_x = List.nth coords 0 in
-        x.(i) <- curr_x;
-        min_x := min !min_x curr_x;
-        max_x := max !max_x curr_x
-      done;
-
-      let y = Array.make (Array.length x) 0.0 in
-
-      let max_x_clusters = ref (-.max_float) in
-      let min_x_clusters = ref max_float in
-
-      (* Convert 1D points list to Array *)
-      let x_clusters = Array.make (List.length points) 0.0 in
-
-      (* Create an array from the existing points and find the max and min
-         bounds*)
-      for i = 0 to List.length clusters - 1 do
-        let coords = get_coordinates (List.nth clusters i) in
-        let curr_x = List.nth coords 0 in
-        x_clusters.(i) <- curr_x;
-        min_x_clusters := min !min_x_clusters curr_x;
-        max_x_clusters := max !max_x_clusters curr_x
-      done;
-
-      let y_clusters = Array.make (Array.length x) 0.0 in
-
-      let open Plplot in
-      plsdev "pngcairo";
-      plsfnam filename;
-      plinit ();
-
-      let range = !max_x -. !min_x in
-
-      (* Initialize PLplot *)
-      plenv (!min_x -. (0.1 *. range)) (!max_x +. (0.1 *. range)) (-0.1) 0.1 0 0;
-
-      pllab "X-axis" "" "1D Graph";
-
-      (*let n_points = 100 in let x = Array.init n_points (fun _ -> Random.float
-        10.0) in let y = Array.make n_points 0.0 in*)
-      (* Plot normal points *)
-      plcol0 2;
-      plschr 0.0 1.0;
-      plpoin x y 9;
-
-      (* Plot cluster points *)
-      plcol0 3;
-      plpoin x_clusters y_clusters 5;
-
-      plend ();
-      Printf.printf "1D plot saved to %s\n" filename
+      GroupProject.Visualizations.create_1d_graph filename points clusters
     in
 
     let create_3d_graph filename (points : t list) clusters =
-      let max_x = ref (-.max_float) in
-      let min_x = ref max_float in
-      let max_y = ref (-.max_float) in
-      let min_y = ref max_float in
-      let max_z = ref (-.max_float) in
-      let min_z = ref max_float in
-
-      (* Convert 3D points list to Array *)
-      let x = Array.make (List.length points) 0.0 in
-      let y = Array.make (List.length points) 0.0 in
-      let z = Array.make (List.length points) 0.0 in
-
-      for i = 0 to List.length points - 1 do
-        let coords = get_coordinates (List.nth points i) in
-        let curr_x = List.nth coords 0 in
-        let curr_y = List.nth coords 1 in
-        let curr_z = List.nth coords 2 in
-        x.(i) <- curr_x;
-        y.(i) <- curr_y;
-        z.(i) <- curr_z;
-        min_x := min !min_x curr_x;
-        max_x := max !max_x curr_x;
-        min_y := min !min_y curr_y;
-        max_y := max !max_y curr_y;
-        min_z := min !min_z curr_z;
-        max_z := max !max_z curr_z
-      done;
-
-      let max_x_clusters = ref (-.max_float) in
-      let min_x_clusters = ref max_float in
-      let max_y_clusters = ref (-.max_float) in
-      let min_y_clusters = ref max_float in
-      let max_z_clusters = ref (-.max_float) in
-      let min_z_clusters = ref max_float in
-
-      (* Convert 2D points list to Array *)
-      let x_clusters = Array.make (List.length clusters) 0.0 in
-      let y_clusters = Array.make (List.length clusters) 0.0 in
-      let z_clusters = Array.make (List.length clusters) 0.0 in
-
-      (* Create an array from the existing points and find the max and min
-         bounds*)
-      for i = 0 to List.length clusters - 1 do
-        let coords = get_coordinates (List.nth clusters i) in
-        let curr_x = List.nth coords 0 in
-        let curr_y = List.nth coords 1 in
-        let curr_z = List.nth coords 2 in
-        x_clusters.(i) <- curr_x;
-        y_clusters.(i) <- curr_y;
-        z_clusters.(i) <- curr_z;
-        min_x_clusters := min !min_x_clusters curr_x;
-        max_x_clusters := max !max_x_clusters curr_x;
-        min_y_clusters := min !min_y_clusters curr_y;
-        max_y_clusters := max !max_y_clusters curr_y;
-        min_z_clusters := min !min_z_clusters curr_z;
-        max_z_clusters := max !max_z_clusters curr_z
-      done;
-
-      let open Plplot in
-      plsdev "pngcairo";
-      plsfnam filename;
-      plinit ();
-
-      let x_range = !max_x -. !min_x in
-      let y_range = !max_y -. !min_y in
-      let z_range = !max_z -. !min_z in
-
-      let max_range = max x_range (max y_range z_range) in
-
-      let scale_factor = 5.0 in
-
-      plenv
-        (-0.5 *. max_range *. scale_factor)
-        (0.5 *. max_range *. scale_factor)
-        (-0.5 *. max_range *. scale_factor)
-        (0.5 *. max_range *. scale_factor)
-        0 0;
-
-      plw3d (1.0 *. scale_factor) (1.0 *. scale_factor) (1.0 *. scale_factor)
-        (!min_x -. (0.1 *. x_range))
-        (!max_x +. (0.1 *. x_range))
-        (!min_y -. (0.1 *. y_range))
-        (!max_y +. (0.1 *. y_range))
-        (!min_z -. (0.1 *. z_range))
-        (!max_z +. (0.1 *. z_range))
-        30.0 30.0;
-
-      plcol0 1;
-      plbox3 "bnstu" "X-axis" 0.0 0 "bnstu" "Y-axis" 0.0 0 "bcdmnstuv" "Z-axis"
-        0.0 0;
-
-      (* let n_points = 100 in let x = Array.init n_points (fun _ ->
-         Random.float 2.0 -. 1.0) in let y = Array.init n_points (fun _ ->
-         Random.float 2.0 -. 1.0) in let z = Array.init n_points (fun _ ->
-         Random.float 2.0 -. 1.0) in*)
-      plcol0 2;
-      plpoin3 x y z 9;
-
-      (* Plot cluster points *)
-      plcol0 3;
-      plpoin3 x_clusters y_clusters z_clusters 5;
-
-      plend ();
-      Printf.printf "3D scatter plot saved to %s\n" filename
+      GroupProject.Visualizations.create_3d_graph filename points clusters
     in
 
-    let plot_graph view (points : t list) clusters () =
+    let plot_graph view points clusters () =
       let filename = "graph.png" in
       if view = "1D" then create_1d_graph filename points clusters
       else if view = "2D" then create_2d_graph filename points clusters
@@ -853,30 +619,46 @@ let initialize_gui () =
 
     (* Run k-means handler *)
     let run_kmeans () =
+      Printf.printf "Starting run_kmeans...\n%!";
+      (* Debug print *)
       match !current_points with
-      | [] -> buffer#insert "\nNo points loaded. Please select a file first.\n"
+      | [] ->
+          Printf.printf "No points loaded\n%!";
+          (* Debug print *)
+          buffer#insert "\nNo points loaded. Please select a file first.\n"
       | points -> (
           try
+            Printf.printf "Points loaded, running clustering...\n%!";
+            (* Debug print *)
             let dist_fn =
               if radio_euclidean#active then euclidean_distance
               else manhattan_distance
             in
             buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
+            Printf.printf "Running k-means with k=%d...\n%!" !current_k;
+            (* Debug print *)
             let clusters = run_custom_kmeans !current_k points dist_fn in
             buffer#insert "Clustering completed.\n";
+            Printf.printf "Clustering completed, creating visualization...\n%!";
 
-            (* let _ = generate_svg_visualization points clusters in *)
+            (* Debug print *)
             if !current_dim == 1 then begin
+              Printf.printf "Creating 1D visualization...\n%!";
+              (* Debug print *)
               let _ = plot_graph "1D" points clusters () in
               buffer#insert "Visualization saved to 'graph.png'\n";
               graph_image#set_file "graph.png"
             end
             else if !current_dim == 2 then begin
+              Printf.printf "Creating 2D visualization...\n%!";
+              (* Debug print *)
               let _ = plot_graph "2D" points clusters () in
               buffer#insert "Visualization saved to 'graph.png'\n";
               graph_image#set_file "graph.png"
             end
             else if !current_dim == 3 then begin
+              Printf.printf "Creating 3D visualization...\n%!";
+              (* Debug print *)
               let _ = plot_graph "3D" points clusters () in
               buffer#insert "Visualization saved to 'graph.png'\n";
               graph_image#set_file "graph.png"
@@ -885,6 +667,8 @@ let initialize_gui () =
               buffer#insert
                 "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
 
+            Printf.printf "Visualization completed\n%!";
+            (* Debug print *)
             List.iteri
               (fun i cluster ->
                 buffer#insert
@@ -895,6 +679,8 @@ let initialize_gui () =
                   ^ "\n"))
               clusters
           with e ->
+            Printf.printf "Error occurred: %s\n%!" (Printexc.to_string e);
+            (* Debug print *)
             buffer#insert
               ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"))
     in
@@ -924,34 +710,141 @@ let initialize_gui () =
 
     let next_button = GButton.button ~label:"Next" ~packing:vbox#pack () in
     window#misc#show_all ();
-    ignore (next_button#connect#clicked ~callback:transition4)
-  and transition4 () =
+    ignore
+      (next_button#connect#clicked ~callback:(fun () ->
+           transition4 !current_k !current_points))
+  and transition4 current_k current_points =
     (* Transition 6: Show statistics *)
     clean window;
     let stats_box = GPack.vbox ~packing:window#add () in
     let _statistics_title =
-      GMisc.label ~markup:"<span size='50000'><b>Run KNN: </b></span>"
-        ~selectable:true ~yalign:0.0 ~height:50
+      GMisc.label
+        ~markup:"<span size='50000'><b>K-Means Cluster Statistics</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:50
         ~packing:(stats_box#pack ~expand:true ~fill:true)
         ()
     in
 
-    (* TODO: add KNN *)
+    let clusters =
+      run_custom_kmeans current_k current_points euclidean_distance
+    in
+    let cluster_stats_box = GPack.vbox ~packing:stats_box#add ~spacing:20 () in
+
+    let total_points = List.length current_points in
+    let _total_points_label =
+      GMisc.label
+        ~markup:
+          ("<span size='20000'>Total Points: " ^ string_of_int total_points
+         ^ "</span>")
+        ~selectable:false ~xalign:0.5 ~yalign:0.5
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let _cluster_count_label =
+      GMisc.label
+        ~markup:
+          ("<span size='20000'>Number of Clusters: "
+          ^ string_of_int (List.length clusters)
+          ^ "</span>")
+        ~selectable:false ~xalign:0.5 ~yalign:0.5
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let total_variance =
+      total_variation current_points clusters euclidean_distance
+    in
+    let _total_variance_label =
+      GMisc.label
+        ~markup:
+          ("<span size='20000'>Total Variance: "
+          ^ string_of_float total_variance
+          ^ "</span>")
+        ~selectable:false ~xalign:0.5 ~yalign:0.5
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let _divider =
+      GMisc.separator `HORIZONTAL
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:true)
+        ()
+    in
+    _divider#misc#set_size_request ~height:2 ();
+
+    List.iteri
+      (fun i cluster ->
+        let cluster_points =
+          let pts_in_cluster cluster clusters points dist_fn =
+            List.filter
+              (fun point ->
+                List.for_all
+                  (fun other_cluster ->
+                    dist_fn point cluster <= dist_fn point other_cluster)
+                  clusters)
+              points
+          in
+          pts_in_cluster cluster clusters current_points euclidean_distance
+        in
+        let _cluster_label =
+          GMisc.label
+            ~markup:
+              ("<span size='20000'><b>Cluster "
+              ^ string_of_int (i + 1)
+              ^ ":</b></span>")
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        let _cluster_size_label =
+          GMisc.label
+            ~markup:("Size: " ^ string_of_int (List.length cluster_points))
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        let _cluster_centroid_label =
+          GMisc.label
+            ~markup:("Centroid: " ^ GroupProject.Point.to_string cluster)
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        let cluster_variance =
+          total_variation current_points [ cluster ] euclidean_distance
+        in
+        let _cluster_variance_label =
+          GMisc.label
+            ~markup:("Variance: " ^ string_of_float cluster_variance)
+            ~selectable:false ~xalign:0.5 ~yalign:0.5
+            ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+            ()
+        in
+        ())
+      clusters;
+
     let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
     window#misc#show_all ();
-    ignore (next_button#connect#clicked ~callback:transition5)
-  and transition5 () =
+    ignore
+      (next_button#connect#clicked ~callback:(fun () ->
+           transition5 current_k current_points))
+  and transition5 current_k current_points =
     (* Transition 7: Plotting *)
     clean window;
     let plot_box = GPack.vbox ~packing:window#add () in
     let _plot_title =
-      GMisc.label ~markup:"<span size='50000'><b>Your statistics: </b></span>"
-        ~selectable:true ~yalign:0.0 ~height:50
+      GMisc.label ~markup:"<span size='50000'><b>KNN/b></span>" ~selectable:true
+        ~yalign:0.0 ~height:50
         ~packing:(plot_box#pack ~expand:true ~fill:true)
         ()
     in
 
-    (* TODO: add statistics *)
+    let clusters =
+      run_custom_kmeans current_k current_points euclidean_distance
+    in
+    let _ = create_2d_graph "graph.png" current_points clusters in
+
     let next_button = GButton.button ~label:"Next" ~packing:plot_box#pack () in
     window#misc#show_all ();
     ignore (next_button#connect#clicked ~callback:transition6)
