@@ -451,7 +451,11 @@ let initialize_gui () =
     (* Store current points and dimension *)
     let current_points = ref [] in
     let current_dim = ref 0 in
-    let current_k = ref 2 in
+    let current_k = ref 3 in
+    (* Update current_k when k_spin value changes *)
+    ignore
+      (k_spin#connect#value_changed ~callback:(fun () ->
+           current_k := int_of_float k_spin#value));
     let current_metric = ref "Euclidean" in
 
     (* Distance metric change handler *)
