@@ -1,4 +1,4 @@
 (executable
  (public_name GroupProject)
  (name main)
- (libraries GroupProject csv ANSITerminal lwt.unix plplot batteries))
+ (libraries GroupProject))
