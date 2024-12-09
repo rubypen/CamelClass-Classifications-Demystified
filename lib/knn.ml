@@ -32,10 +32,19 @@ let classify k point points_list =
   in
   let counts =
     List.sort
-      (fun (label1, count1) (label2, count2) ->
-        if count1 = count2 then String.compare label1 label2
-        else compare count2 count1)
+      (fun (label1, count1) (label2, count2) -> compare count2 count1)
       counts
   in
-  let best_label, _ = List.hd counts in
+  let max_count = snd (List.hd counts) in
+  let tied_labels =
+    List.filter (fun (_, count) -> count = max_count) counts |> List.map fst
+  in
+  let best_label =
+    match tied_labels with
+    | [ label ] -> label
+    | _ ->
+        let nearest_label = snd (List.hd neighbors) in
+        if List.mem nearest_label tied_labels then nearest_label
+        else List.hd tied_labels
+  in
   best_label
