@@ -144,7 +144,7 @@ let test_assign_points _ =
       ]
   in
   let clusters = initialize_clusters 2 points in
-  let assignments = assign_points points clusters in
+  let assignments = assign_points points clusters euclidean_distance in
   assert_equal 2 (List.length assignments);
   let _, assigned_to_first = List.hd assignments in
   assert_equal 2 (List.length assigned_to_first)
@@ -162,7 +162,7 @@ let test_update_centroids _ =
 let test_has_converged _ =
   let clusters1 = [ create 2 [ 0.0; 0.0 ]; create 2 [ 2.0; 2.0 ] ] in
   let clusters2 = [ create 2 [ 0.01; 0.01 ]; create 2 [ 2.0; 2.0 ] ] in
-  let result = has_converged clusters1 clusters2 0.02 in
+  let result = has_converged clusters1 clusters2 euclidean_distance 0.02 in
   assert_bool "Clusters have converged" result
 
 let test_run_kmeans _ =
@@ -174,7 +174,7 @@ let test_run_kmeans _ =
       create 2 [ 3.0; 3.0 ];
     ]
   in
-  let clusters = run_kmeans 2 points in
+  let clusters = run_kmeans 2 points euclidean_distance in
   assert_equal 2 (List.length clusters)
 
 let test_total_variation _ =
@@ -182,8 +182,8 @@ let test_total_variation _ =
     [ create 2 [ 0.0; 0.0 ]; create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ] ]
   in
   let centroids = [ create 2 [ 0.0; 0.0 ]; create 2 [ 2.0; 2.0 ] ] in
-  let variation = total_variation points centroids in
-  assert_bool "Variation is\n   positive" (variation > 0.0)
+  let variation = total_variation points centroids euclidean_distance in
+  assert_bool "Variation is positive" (variation > 0.0)
 
 let test_find_best_set _ =
   let points =
@@ -194,8 +194,13 @@ let test_find_best_set _ =
       create 2 [ 3.0; 3.0 ];
     ]
   in
-  let clusters_sets = [ run_kmeans 2 points; run_kmeans 3 points ] in
-  let best_set = find_best_set clusters_sets points in
+  let clusters_sets =
+    [
+      run_kmeans 2 points euclidean_distance;
+      run_kmeans 3 points euclidean_distance;
+    ]
+  in
+  let best_set = find_best_set clusters_sets points euclidean_distance in
   assert_equal true (List.length best_set > 0)
 
 let test_find_best_k _ =
@@ -207,8 +212,10 @@ let test_find_best_k _ =
       create 2 [ 3.0; 3.0 ];
     ]
   in
-  let clusters_sets = List.map (fun k -> run_kmeans k points) [ 2; 3; 4 ] in
-  let best_k = find_best_k clusters_sets points in
+  let clusters_sets =
+    List.map (fun k -> run_kmeans k points euclidean_distance) [ 2; 3; 4 ]
+  in
+  let best_k = find_best_k clusters_sets points euclidean_distance in
   assert_bool "Best k is positive" (best_k > 0)
 
 let create_labeled_points points labels =
