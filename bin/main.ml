@@ -1,6 +1,7 @@
 open GroupProject.Point
 open GroupProject.Csvreader
 open GroupProject.Kmeans
+open GroupProject.Knn
 open GroupProject.Extensions
 open GroupProject.Visualizations
 open GMain
@@ -1001,7 +1002,6 @@ let print_help () =
   let display = clr_ Bold Ylw "points" in
   let distances = clr_ Bold Ylw "dists" in
   let kmeans = clr_ Bold Ylw "kmeans" in
-  let knn = clr_ Bold Ylw "knn" in
   let help = clr_ Bold Ylw "help" in
   let exit = clr_ Bold Ylw "exit" in
   let reload = clr_ Bold Ylw "reload" in
@@ -1011,14 +1011,13 @@ let print_help () =
     "- %s : Compute distances between points using a selected metric.\n"
     distances;
   Printf.printf "- %s : Perform k-means. \n" kmeans;
-  Printf.printf "- %s : Perform k-nearest neighbors. \n" knn;
   Printf.printf "- %s :  Load a new CSV file.\n" reload;
   Printf.printf "- %s : Display HELP message. \n" help;
   Printf.printf "- %s :  Exit the program. \n" exit
 
 (* MARK: - Properties (Assurance) *)
 
-(** [is_csv c] is whether or not [c] is a csv file *)
+(** [is_csv c] is whether or not [c] is a csv file. *)
 let is_csv c =
   let len = String.length c in
   if len < 4 || String.sub c (len - 4) 4 <> ".csv" then begin
@@ -1027,7 +1026,7 @@ let is_csv c =
   end
   else true
 
-(** [is_dimension d] is whether or not [d] is a valid dimension *)
+(** [is_dimension d] is whether or not [d] is a valid dimension. *)
 let is_dimension d =
   try d > 0
   with _ ->
@@ -1096,9 +1095,25 @@ let dummy_pt dim =
   in
   create dim coords
 
+(** [prompt_for_distfn ()] is the distance function the user chooses. *)
+let prompt_for_distfn () =
+  let prompt_metric =
+    clr_ Reg Ylw
+      "What distance metric would you like to use ([E: Euclidean] or [M: \
+       Manhattan]): "
+  in
+  Printf.printf "%s" prompt_metric;
+  let dist_metric = String.lowercase_ascii (read_line ()) in
+  let distance_metric =
+    if dist_metric = "e" then "euclidean"
+    else if dist_metric = "m" then "manhattan"
+    else "invalid"
+  in
+  distance_metric
+
 (** [distances p dim dist_metric] is the list of tuples with distance(s)
     calculated under [dist_metric] between the points [p] in csv and a dummy
-    point *)
+    point. *)
 let distances p dim dist_metric =
   let p_list = CsvReaderImpl.read_points dim p in
   let dp = dummy_pt dim in
@@ -1169,18 +1184,7 @@ let ask_to_save_dists distances metric =
     ... n and a dummy point based on a distance metric the user chooses, as well
     as prompts the user to save the data in the data directory. *)
 let print_distances points dim =
-  let prompt_metric =
-    clr_ Reg Ylw
-      "What distance metric would you like to use ([E: Euclidean] or [M: \
-       Manhattan]): "
-  in
-  Printf.printf "%s" prompt_metric;
-  let dist_metric = String.lowercase_ascii (read_line ()) in
-  let distance_metric =
-    if dist_metric = "e" then "euclidean"
-    else if dist_metric = "m" then "manhattan"
-    else "invalid"
-  in
+  let distance_metric = prompt_for_distfn () in
   match distance_metric with
   | "euclidean" | "manhattan" -> begin
       let distance_results = distances points dim distance_metric in
@@ -1205,6 +1209,89 @@ let print_distances points dim =
 (* Classifications UI Logic *)
 (* -------------------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
+(* KNN Display Logic *)
+(* -------------------------------------------------------------------------- *)
+
+(** [prompt_for_point dim] is the point the user wants to classify into a
+    cluster using knn after running kmeans. *)
+let prompt_for_point dim =
+  let prompt =
+    clr_ Und Wht
+      "Enter the %dD coordinate you'd like to classify \
+       (comma-separated-values; i.e. x1, ..., xk):"
+      dim
+  in
+  let err_msg = clr_ Reg Red "Invalid input." in
+  Printf.printf "\n%s " prompt;
+  try
+    let point =
+      String.split_on_char ',' (read_line ()) |> List.map float_of_string
+    in
+    create dim point
+  with _ ->
+    Printf.printf "%s Defaulting to (1.0, ..., 1.0).\n" err_msg;
+    create dim (List.init dim (fun _ -> 1.0))
+
+(** [prompt_for_k_knn k_max] is the k-value from 1 to [k_max] that represents
+    how many nearest neighbors will be considered in running knn. *)
+let prompt_for_k_knn k_max =
+  let prompt =
+    clr_ Und Wht "Enter k, the number of neighbors/clusters to consider (1-%d):"
+      k_max
+  in
+  let err_msg = clr_ Reg Red "Invalid input." in
+  Printf.printf "\n%s " prompt;
+  try
+    let k_val = int_of_string (read_line ()) in
+    k_val
+  with _ ->
+    Printf.printf "%s Defaulting to k = 1.\n" err_msg;
+    1
+
+(** [run_knn_ui clusters dim dist_fn] takes in user input for what point must be
+    classified and runs knn to classify the point and inform the user of the
+    conclusion, given the user provides valid data, otherwise default values
+    shall be used. *)
+let run_knn_ui clusters dim dist_fn =
+  let point = prompt_for_point dim in
+  let k = prompt_for_k_knn (List.length clusters) in
+  let neighbors =
+    clusters
+    |> List.sort (fun c1 c2 -> compare (dist_fn point c1) (dist_fn point c2))
+    |> List.filteri (fun i _ -> i < k)
+  in
+  let classification =
+    let cluster_count =
+      List.fold_left
+        (fun acc c ->
+          let count = try List.assoc c acc with Not_found -> 0 in
+          (c, count + 1) :: List.remove_assoc c acc)
+        [] neighbors
+    in
+    let max_cluster, _ =
+      List.fold_left
+        (fun (max_c, max_count) (c, count) ->
+          if count > max_count then (c, count) else (max_c, max_count))
+        (List.hd cluster_count) cluster_count
+    in
+    max_cluster
+  in
+  let cluster_index =
+    let rec find_idx index = function
+      | [] -> -1
+      | c :: _ when c = classification -> index
+      | _ :: rest -> find_idx (index + 1) rest
+    in
+    find_idx 0 clusters
+  in
+  let class_msg =
+    clr_ Reg Grn "The point %s belongs to Cluster %d.\n" (to_string point)
+      (cluster_index + 1)
+  in
+  if cluster_index >= 0 then Printf.printf "\n%s" class_msg
+  else Printf.printf "\nERROR: Could not classify point.\n"
+
+(* -------------------------------------------------------------------------- *)
 (* Kmeans Display Logic *)
 (* -------------------------------------------------------------------------- *)
 
@@ -1223,7 +1310,7 @@ let prompt_for_k point_ct =
     let inform_msg =
       clr_ Reg Wht
         "\n\
-         Now you specify a value for k, the number of clusters. Your file \
+         Now you will specify a value for k, the number of clusters. Your file \
          contains %d points, so k must be between 1 and %d, inclusive.\n\n"
         point_ct point_ct
     in
@@ -1314,17 +1401,38 @@ let ask_to_save_clusters clusters points dist_fn k =
   let input = String.lowercase_ascii (read_line ()) in
   if input = "yes" then save_clusters_to_csv clusters points dist_fn k else ()
 
+(** [prompt_to_classify clusters dim dist_fn] asks the user whether or not
+    they'd like to classify a point using knn into a cluster resultant from
+    running kmeans. *)
+let prompt_to_classify clusters dim dist_fn =
+  let prompt =
+    clr_ Bold Ylw
+      "\n\
+       Would you like to classify a point into one of the clusters? (yes/no): "
+  in
+  Printf.printf "%s" prompt;
+  let classify_input = String.lowercase_ascii (read_line ()) in
+  if classify_input = "yes" then run_knn_ui clusters dim dist_fn
+
 (** [run_kmeans_ui csv dim point_count] performs k-means clustering on the
     dataset in [csv] and handles user interaction with processing and saving the
     data. *)
 let run_kmeans_ui csv dim point_count =
   let points = CsvReaderImpl.read_points dim csv in
+  let dist_fn =
+    let err_msg = clr_ Reg Red "Invalid metric." in
+    match prompt_for_distfn () with
+    | "euclidean" -> euclidean_distance
+    | "manhattan" -> manhattan_distance
+    | _ ->
+        Printf.printf "%s Defaulting to euclidean distance function.\n" err_msg;
+        euclidean_distance
+  in
   let k = prompt_for_k point_count in
   let progress_msg = Printf.sprintf "Running k-means with k = %d" k in
   show_progress_bar progress_msg;
   try
     let complete_msg = clr_ Und Ylw "Cluster centers:" in
-    let dist_fn = euclidean_distance in
     let clusters = run_custom_kmeans k points dist_fn in
     Printf.printf "%s\n" complete_msg;
 
@@ -1334,14 +1442,10 @@ let run_kmeans_ui csv dim point_count =
       clusters;
 
     prompt_to_show_clusters clusters points dist_fn;
-    ask_to_save_clusters clusters points dist_fn k
+    ask_to_save_clusters clusters points dist_fn k;
+    prompt_to_classify clusters dim dist_fn
   with _ ->
     Printf.printf "%s unable to cluster [%s]\n" (clr_ Bold Red "Error:") csv
-
-(* -------------------------------------------------------------------------- *)
-(* KNN Display Logic *)
-(* -------------------------------------------------------------------------- *)
-let run_knn_ui csv dim = ()
 
 (* -------------------------------------------------------------------------- *)
 (* Input Handlers *)
@@ -1425,9 +1529,6 @@ let rec command_handler csv dim point_count =
       command_handler csv dim point_count
   | "kmeans" ->
       run_kmeans_ui csv dim point_count;
-      command_handler csv dim point_count
-  | "knn" ->
-      run_knn_ui csv dim;
       command_handler csv dim point_count
   | "reload" ->
       let (new_csv : string), (new_dimension : int), (new_point_count : int) =
