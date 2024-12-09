@@ -238,14 +238,12 @@ let test_sort_by_distance _ =
     (fun actual expected -> assert_equal actual expected)
     actual_sorted_labels expected_sorted_labels
 
-(* Test for k_nearest_neighbors *)
 let test_k_nearest_neighbors _ =
   let query_point = create 2 [ 0.0; 0.0 ] in
   let points =
     [ create 2 [ 1.0; 1.0 ]; create 2 [ 2.0; 2.0 ]; create 2 [ 3.0; 3.0 ] ]
   in
   let labeled_points = create_labeled_points points [ "A"; "B"; "C" ] in
-  (* Test k = 2 neighbors *)
   let k = 2 in
   let neighbors = k_nearest_neighbors k query_point labeled_points in
   assert_equal k (List.length neighbors)
