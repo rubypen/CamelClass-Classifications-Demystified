@@ -265,6 +265,10 @@ let initialize_gui () =
     k_spin#adjustment#set_bounds ~lower:1. ~upper:10.0 ~step_incr:1. ();
     k_spin#set_value 3.;
 
+    (* Store current points and dimension *)
+    let current_points = ref [] in
+    let current_dim = ref 0 in
+    let current_k = ref 3 in
     (* Distance metric selection *)
     let metric_box = GPack.hbox ~packing:controls_box#pack () in
     let _ =
@@ -279,7 +283,6 @@ let initialize_gui () =
       GButton.radio_button ~group:radio_euclidean#group ~label:"Manhattan"
         ~packing:metric_box#pack ()
     in
-
     let cluster_colors_box =
       GPack.vbox ~packing:controls_box#pack ~spacing:5 ()
     in
@@ -447,18 +450,69 @@ let initialize_gui () =
       text_view#misc#set_size_request ~width:scroll_view_width
         ~height:scroll_view_height ()
     in
-    let buffer = text_view#buffer in
-
-    (* Store current points and dimension *)
-    let current_points = ref [] in
-    let current_dim = ref 0 in
-    let current_k = ref 3 in
     (* Update current_k when k_spin value changes *)
     ignore
       (k_spin#connect#value_changed ~callback:(fun () ->
            current_k := int_of_float k_spin#value));
     let current_metric = ref "Euclidean" in
 
+    (* Define buffer here *)
+    let buffer = text_view#buffer in
+    (* Add Optimize K button *)
+    let optimize_k_box = GPack.hbox ~packing:controls_box#pack ~spacing:10 () in
+    let optimize_k_button =
+      GButton.button ~label:"Optimize K" ~packing:optimize_k_box#pack ()
+    in
+    let optimize_k_handler () =
+      if List.length !current_points = 0 then
+        buffer#insert "\nNo points loaded. Please select a file first.\n"
+      else begin
+        let points = !current_points in
+        let num_points = List.length points in
+        let dist_fn =
+          if radio_euclidean#active then euclidean_distance
+          else manhattan_distance
+        in
+
+        buffer#insert "\nCalculating optimal K value...\n";
+
+        (* Run k-means for a range up to min(6, num_points) *)
+        let max_k = min 6 num_points in
+        buffer#insert
+          (Printf.sprintf "Testing different k values (2 to %d)...\n" max_k);
+        let cluster_sets = ref [] in
+
+        (* Try each k value individually and update progress *)
+        for k = 2 to max_k do
+          buffer#insert (Printf.sprintf "Testing k=%d...\n" k);
+          try
+            let clusters = run_kmeans k points dist_fn in
+            cluster_sets := clusters :: !cluster_sets;
+            buffer#insert (Printf.sprintf "Completed k=%d\n" k)
+          with Invalid_argument _ ->
+            buffer#insert
+              (Printf.sprintf "Skipped k=%d (not enough points)\n" k)
+        done;
+
+        if List.length !cluster_sets = 0 then
+          buffer#insert
+            "\nCould not find optimal k value. Try with more data points.\n"
+        else begin
+          buffer#insert "Calculating best k value...\n";
+          let best_k = find_best_k (List.rev !cluster_sets) points dist_fn in
+
+          (* Display final result *)
+          buffer#insert (Printf.sprintf "\nOptimal K value found: %d\n" best_k);
+
+          (* Update the k-spin value *)
+          k_spin#set_value (float_of_int best_k);
+
+          buffer#insert "Done! The k-value has been updated.\n"
+        end
+      end
+    in
+    (* Connect the handler *)
+    ignore (optimize_k_button#connect#clicked ~callback:optimize_k_handler);
     (* Distance metric change handler *)
     let on_metric_changed () =
       current_metric :=
@@ -812,8 +866,24 @@ let initialize_gui () =
             ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
             ()
         in
+        let cluster_points =
+          let pts_in_cluster cluster clusters points dist_fn =
+            List.filter
+              (fun point ->
+                List.for_all
+                  (fun other_cluster ->
+                    dist_fn point cluster <= dist_fn point other_cluster)
+                  clusters)
+              points
+          in
+          pts_in_cluster cluster clusters current_points euclidean_distance
+        in
         let cluster_variance =
-          total_variation current_points [ cluster ] euclidean_distance
+          List.fold_left
+            (fun acc point ->
+              let dist = euclidean_distance point cluster in
+              acc +. (dist *. dist))
+            0.0 cluster_points
         in
         let _cluster_variance_label =
           GMisc.label
