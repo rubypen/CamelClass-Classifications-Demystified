@@ -1236,8 +1236,7 @@ let prompt_for_point dim =
     how many nearest neighbors will be considered in running knn. *)
 let prompt_for_k_knn k_max =
   let prompt =
-    clr_ Und Wht "Enter k, the number of neighbors/clusters to consider (1-%d):"
-      k_max
+    clr_ Und Wht "Enter k, the number of neighbors to consider (1-%d):" k_max
   in
   let err_msg = clr_ Reg Red "Invalid input." in
   Printf.printf "\n%s " prompt;
@@ -1255,38 +1254,14 @@ let prompt_for_k_knn k_max =
 let run_knn_ui clusters dim dist_fn =
   let point = prompt_for_point dim in
   let k = prompt_for_k_knn (List.length clusters) in
-  let neighbors =
-    clusters
-    |> List.sort (fun c1 c2 -> compare (dist_fn point c1) (dist_fn point c2))
-    |> List.filteri (fun i _ -> i < k)
+  let labeled_clusters =
+    List.mapi (fun i cluster -> (cluster, string_of_int i)) clusters
   in
-  let classification =
-    let cluster_count =
-      List.fold_left
-        (fun acc c ->
-          let count = try List.assoc c acc with Not_found -> 0 in
-          (c, count + 1) :: List.remove_assoc c acc)
-        [] neighbors
-    in
-    let max_cluster, _ =
-      List.fold_left
-        (fun (max_c, max_count) (c, count) ->
-          if count > max_count then (c, count) else (max_c, max_count))
-        (List.hd cluster_count) cluster_count
-    in
-    max_cluster
-  in
-  let cluster_index =
-    let rec find_idx index = function
-      | [] -> -1
-      | c :: _ when c = classification -> index
-      | _ :: rest -> find_idx (index + 1) rest
-    in
-    find_idx 0 clusters
-  in
+  let classification = classify k point labeled_clusters in
+  let cluster_index = int_of_string classification + 1 in
   let class_msg =
     clr_ Reg Grn "The point %s belongs to Cluster %d.\n" (to_string point)
-      (cluster_index + 1)
+      cluster_index
   in
   if cluster_index >= 0 then Printf.printf "\n%s" class_msg
   else Printf.printf "\nERROR: Could not classify point.\n"
@@ -1408,7 +1383,8 @@ let prompt_to_classify clusters dim dist_fn =
   let prompt =
     clr_ Bold Ylw
       "\n\
-       Would you like to classify a point into one of the clusters? (yes/no): "
+       Would you like to classify a point into one of the clusters using kNN? \
+       (yes/no): "
   in
   Printf.printf "%s" prompt;
   let classify_input = String.lowercase_ascii (read_line ()) in
