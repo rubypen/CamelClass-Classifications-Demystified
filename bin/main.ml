@@ -812,8 +812,24 @@ let initialize_gui () =
             ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
             ()
         in
+        let cluster_points =
+          let pts_in_cluster cluster clusters points dist_fn =
+            List.filter
+              (fun point ->
+                List.for_all
+                  (fun other_cluster ->
+                    dist_fn point cluster <= dist_fn point other_cluster)
+                  clusters)
+              points
+          in
+          pts_in_cluster cluster clusters current_points euclidean_distance
+        in
         let cluster_variance =
-          total_variation current_points [ cluster ] euclidean_distance
+          List.fold_left
+            (fun acc point ->
+              let dist = euclidean_distance point cluster in
+              acc +. (dist *. dist))
+            0.0 cluster_points
         in
         let _cluster_variance_label =
           GMisc.label
