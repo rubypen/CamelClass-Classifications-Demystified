@@ -31,7 +31,7 @@ let create_1d_graph filename points clusters =
   let y_clusters = Array.make (Array.length x_clusters) 0.0 in
 
   let open Plplot in
-  plsdev "pngqt";
+  plsdev "png";
   plsfnam filename;
   plinit ();
 
@@ -72,7 +72,7 @@ let create_2d_graph filename points clusters =
   done;
 
   let open Plplot in
-  plsdev "pngqt";
+  plsdev "png";
   plsfnam filename;
   plinit ();
 
@@ -160,7 +160,7 @@ let create_3d_graph filename points clusters =
   done;
 
   let open Plplot in
-  plsdev "pngqt";
+  plsdev "png";
   plsfnam filename;
   plinit ();
 
