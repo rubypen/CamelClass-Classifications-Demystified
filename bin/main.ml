@@ -63,28 +63,42 @@ let initialize_gui () =
 
   (* Add title labels *)
   let _project_title =
-    GMisc.label ~markup:"<span size='50000'><b>CamelClass</b></span>"
+    GMisc.label ~markup:"<span size='100000'><b>CamelClass</b></span>"
       ~selectable:true ~yalign:0.0
       ~packing:(vbox#pack ~expand:true ~fill:true)
       ()
   in
   let _project_subtitle =
-    GMisc.label ~markup:"<span size='25000'>K-means Clustering</span>"
-      ~selectable:true ~yalign:0.5
+    GMisc.label ~markup:"<span size='35000'>K-means Clustering</span>"
+      ~selectable:true ~yalign:0.0
       ~packing:(vbox#pack ~expand:true ~fill:true)
       ()
   in
 
   (* Create drawing area *)
-  let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
-  drawing_area#misc#set_size_request ~width:600 ~height:400 ();
+  (* let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
+  drawing_area#misc#set_size_request ~width:600 ~height:400 (); *)
 
   (* Create controls area *)
-  let controls_box = GPack.hbox ~packing:vbox#pack () in
+  let controls_box = GPack.hbox ~spacing:5 ~packing:vbox#pack () in
 
   (* Start button *)
   let start_button =
-    GButton.button ~label:"Start" ~packing:controls_box#pack ()
+    GButton.button ~label:"Start"
+      ~packing:(controls_box#pack ~expand:true ~fill:false)
+      ()
+  in
+  let font = GPango.font_description_from_string "Arial 20" in
+  start_button#misc#modify_font font;
+  start_button#misc#set_size_request ~height:80 ~width:200 ();
+
+  (* Picture *)
+  let cwd = Sys.getcwd () in
+  let font_file = Filename.concat cwd "data/pictures/background.jpeg" in
+  let pixbuf = GdkPixbuf.from_file_at_size font_file ~width:1000 ~height:600 in
+
+  let _font_picture =
+    GMisc.image ~pixbuf ~packing:(vbox#pack ~expand:true ~fill:true) ()
   in
 
   (* Cleaning the existing window*)
@@ -944,29 +958,8 @@ let initialize_gui () =
     let back_button = GButton.button ~label:"Back" ~packing:stats_box#pack () in
     ignore (back_button#connect#clicked ~callback:(fun () -> transition3 ()));
     let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
-    ignore
-      (next_button#connect#clicked ~callback:(fun () ->
-           transition5 current_k current_points));
+    ignore (next_button#connect#clicked ~callback:(fun () -> transition6 ()));
     window#misc#show_all ()
-  and transition5 current_k current_points =
-    (* Transition 7: Plotting *)
-    clean window;
-    let plot_box = GPack.vbox ~packing:window#add () in
-    let _plot_title =
-      GMisc.label ~markup:"<span size='50000'><b>KNN/b></span>" ~selectable:true
-        ~yalign:0.0 ~height:50
-        ~packing:(plot_box#pack ~expand:true ~fill:true)
-        ()
-    in
-
-    let clusters =
-      run_custom_kmeans current_k current_points euclidean_distance
-    in
-    let _ = create_2d_graph "graph.png" current_points clusters in
-
-    let next_button = GButton.button ~label:"Next" ~packing:plot_box#pack () in
-    window#misc#show_all ();
-    ignore (next_button#connect#clicked ~callback:transition6)
   and transition6 () =
     (* Transition 8: End Screen *)
     clean window;
@@ -1012,8 +1005,8 @@ let initialize_gui () =
           ()
       in
       let _authors_title =
-        GMisc.label ~markup:"<span size='30000'>Authors: </span>"
-          ~selectable:true ~xalign:0.5 ~yalign:0.5
+        GMisc.label ~markup:"<span size='30000'><b>\n\nAuthors: </b></span>"
+          ~selectable:true ~xalign:0.5 ~yalign:1.0
           ~packing:(controls_box#pack ~expand:true ~fill:true)
           ()
       in
@@ -1022,56 +1015,76 @@ let initialize_gui () =
           ~packing:controls_box#add ()
       in
 
-      let add_name name =
+      let add_name name picture_file =
         let column =
-          GPack.vbox ~spacing:20
+          GPack.vbox ~spacing:5
             ~packing:(thanks_box#pack ~expand:true ~fill:true)
             ()
         in
+        ignore (GMisc.label ~markup:name ~xalign:0.5 ~packing:column#add ());
+        let pixbuf =
+          GdkPixbuf.from_file_at_size picture_file ~width:200 ~height:200
+        in
         ignore
-          (GMisc.label (* ~markup:("<span size='30000'" ^ name ^ "</span>") *)
-             ~markup:name ~xalign:0.5 ~packing:column#add ())
+          (GMisc.image ~pixbuf
+             ~packing:(column#pack ~expand:true ~fill:true)
+             ())
       in
 
       (* Adding names of authors *)
-      add_name "Keti Sulamanidze";
+      let picture_file = Filename.concat cwd "data/pictures/camel1.jpeg" in
+      add_name "<span size='30000'> Keti Sulamanidze </span>" picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
           ~packing:(thanks_box#pack ~expand:false ~fill:true)
           ()
       in
       divider#misc#set_size_request ~height:4 ();
-      add_name "Neha Naveen";
+
+      let picture_file = Filename.concat cwd "data/pictures/camel2.jpeg" in
+      add_name "<span size='30000'> Neha Naveen </span>" picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
           ~packing:(thanks_box#pack ~expand:false ~fill:true)
           ()
       in
       divider#misc#set_size_request ~height:4 ();
-      add_name "Ruby Penafiel-Gutierrez";
+
+      let picture_file = Filename.concat cwd "data/pictures/camel3.jpeg" in
+      add_name "<span size='30000'> Ruby Penafiel-Gutierrez </span>"
+        picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
           ~packing:(thanks_box#pack ~expand:false ~fill:true)
           ()
       in
       divider#misc#set_size_request ~height:4 ();
-      add_name "Samantha Vaca";
+
+      let picture_file = Filename.concat cwd "data/pictures/camel4.jpeg" in
+      add_name "<span size='30000'> Samantha Vaca </span>" picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
           ~packing:(thanks_box#pack ~expand:false ~fill:true)
           ()
       in
       divider#misc#set_size_request ~height:4 ();
-      add_name "Varvara Babii";
+
+      let picture_file = Filename.concat cwd "data/pictures/camel5.jpeg" in
+      add_name "<span size='30000'> Varvara Babii </span>" picture_file;
 
       let quit_box =
-        GPack.hbox ~height:10 ~width:80 ~spacing:5 ~packing:controls_box#add ()
+        GPack.vbox ~height:10 ~width:10 ~spacing:5 ~border_width:150
+          ~packing:controls_box#add ()
       in
+      controls_box#set_homogeneous false;
+
       let final_quit_button =
         GButton.button ~label:"Quit"
-          ~packing:(quit_box#pack ~expand:false ~fill:false)
+          ~packing:(quit_box#pack ~expand:true ~fill:false)
           ()
       in
+      final_quit_button#misc#set_size_request ~height:50 ~width:10 ();
+      final_quit_button#misc#modify_font font;
 
       window#misc#show_all ();
       ignore
@@ -1082,7 +1095,6 @@ let initialize_gui () =
     ignore (start_over_button#connect#clicked ~callback:start_over);
     ignore (quit_button#connect#clicked ~callback:quit)
   in
-
   (* Connect signals *)
   ignore (start_button#connect#clicked ~callback:start);
   ignore (window#connect#destroy ~callback:GMain.quit);
