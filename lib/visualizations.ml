@@ -35,8 +35,10 @@ let create_1d_graph filename points clusters =
   plsfnam filename;
   plinit ();
 
+  plcol0 15;
   let range = !max_x -. !min_x in
   plenv (!min_x -. (0.1 *. range)) (!max_x +. (0.1 *. range)) (-0.1) 0.1 0 0;
+  plcol0 15;
   pllab "X-axis" "" "1D Graph";
 
   (* Plot normal points *)
@@ -46,6 +48,9 @@ let create_1d_graph filename points clusters =
 
   (* Plot cluster points *)
   plcol0 3;
+  plpoin x_clusters y_clusters 5;
+
+  plcol0 15;
   plpoin x_clusters y_clusters 5;
 
   plend ()
@@ -79,12 +84,14 @@ let create_2d_graph filename points clusters =
   let x_range = !max_x -. !min_x in
   let y_range = !max_y -. !min_y in
 
+  plcol0 15;
   plenv
     (!min_x -. (0.1 *. x_range))
     (!max_x +. (0.1 *. x_range))
     (!min_y -. (0.1 *. y_range))
     (!max_y +. (0.1 *. y_range))
     0 0;
+  plcol0 15;
   pllab "X-axis" "Y-axis" "2D Graph";
 
   (* Plot points for each cluster *)
@@ -125,7 +132,7 @@ let create_2d_graph filename points clusters =
       let center_coords = Point.get_coordinates cluster_point in
       let cx = List.nth center_coords 0 in
       let cy = List.nth center_coords 1 in
-      plcol0 3;
+      plcol0 15;
       plpoin [| cx |] [| cy |] 5)
     clusters;
 
@@ -171,6 +178,7 @@ let create_3d_graph filename points clusters =
   let max_range = max x_range (max y_range z_range) in
   let scale_factor = 5.0 in
 
+  plcol0 0;
   plenv
     (-0.5 *. max_range *. scale_factor)
     (0.5 *. max_range *. scale_factor)
@@ -187,7 +195,7 @@ let create_3d_graph filename points clusters =
     (!max_z +. (0.1 *. z_range))
     30.0 30.0;
 
-  plcol0 1;
+  plcol0 15;
   plbox3 "bnstu" "X-axis" 0.0 0 "bnstu" "Y-axis" 0.0 0 "bcdmnstuv" "Z-axis" 0.0
     0;
 
@@ -195,7 +203,7 @@ let create_3d_graph filename points clusters =
   plpoin3 x y z 9;
 
   (* Plot cluster centers *)
-  plcol0 3;
+  plcol0 15;
   let x_clusters = Array.make (List.length clusters) 0.0 in
   let y_clusters = Array.make (List.length clusters) 0.0 in
   let z_clusters = Array.make (List.length clusters) 0.0 in
