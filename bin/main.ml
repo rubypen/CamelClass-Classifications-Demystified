@@ -607,11 +607,11 @@ let initialize_gui () =
                 in
                 show_n_points !current_points 5;
 
-                if dim <> 2 then
+                if dim > 3 then
                   buffer#insert
                     "\n\
-                     Note: Points are not 2D. Visualization will not be \
-                     available.\n";
+                     Note: Points are greater than 3D. Visualization will not \
+                     be available.\n";
                 auto_scroll ();
 
                 run_button#misc#set_sensitive true
