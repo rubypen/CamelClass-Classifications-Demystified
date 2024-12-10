@@ -1,0 +1,37 @@
+---
+# Members of the group.
+group:
+  - name: Neha Naveen
+    netid: njn43
+  - name: Keti Sulamanidze
+    netid: ks2469
+  - name: Ruby Penafiel-Gutierrez
+    netid: rsp227
+  - name: Varvara Babii
+    netid: vb348
+  - name: Samantha Vaca
+    netid: sv492
+
+# Our PM.
+pm:
+  name: Sophia Wang
+  netid: sw895
+# Gallery entry is public.
+publish: true
+# Title.
+title: "CamelClass: Classifications Demystified"
+# Cornell Github link.
+git-repo: "https://github.coecis.cornell.edu/ks2469/Ocaml_3110_GP"
+# Demo video.
+demo-video-url: ""
+# Project Description.
+desc: >
+  Our project is an interactive K-Means Classification Visualizer. It supports
+  K-means for points in 1D, 2D, 3D, and beyond. The interface allows users to 
+  offer a CSV file containing points they wish to classify, otherwise they may 
+  run the program on sample points or randomly generated points. Users may also 
+  choose their own value of k or let the model find the optimal value of k.
+  
+  This project is available in GUI and I/O versions.
+  The GUI version supports data visualization and statistics, and the I/O version 
+  supports extra k-Nearest Neighbors functionality on a new user-provided point.
