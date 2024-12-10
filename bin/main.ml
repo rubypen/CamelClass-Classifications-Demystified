@@ -593,7 +593,7 @@ let initialize_gui () =
                   ("Successfully loaded "
                   ^ string_of_int (List.length !current_points)
                   ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
-                  ^ "Sample points:\n");
+                  ^ "Few Sample points:\n");
                 auto_scroll ();
 
                 let rec show_n_points points n =
@@ -688,7 +688,7 @@ let initialize_gui () =
         ("Successfully loaded "
         ^ string_of_int (List.length !current_points)
         ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
-        ^ "Sample points:\n");
+        ^ "Few Sample points:\n");
       auto_scroll ();
 
       let rec show_n_points points n =
@@ -827,7 +827,6 @@ let initialize_gui () =
       (next_button#connect#clicked ~callback:(fun () ->
            transition4 !current_k !current_points))
   and transition4 current_k current_points =
-    (* ----------------------------------------------------------- *)
     (* Transition 6: Show statistics *)
     clean window;
     let stats_box = GPack.vbox ~packing:window#add () in
@@ -1708,7 +1707,10 @@ let () =
       Printf.printf "%s\n\n" authors_title;
       Printf.printf "%s %s\n\n" title debrief;
       Printf.printf "%s"
-        (clr_ Reg Cyan "Would you like to use [GUI] or [I/O] mode? ");
+        (clr_ Reg Cyan
+           "Would you like to use [GUI] or [I/O] mode?\n\
+            NOTE: If selecting [GUI] mode, it will open a new window in your \
+            desktop. ");
       let input = String.lowercase_ascii (read_line ()) in
       match input with
       | "gui" -> initialize_gui ()
