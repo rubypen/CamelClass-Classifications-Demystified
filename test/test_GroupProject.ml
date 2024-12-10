@@ -71,7 +71,7 @@ let test_read_points _ =
     ~printer:(fun x ->
       "[" ^ list_to_string (List.map GroupProject.Point.to_string x) ^ "]");
   let points = CsvReaderImpl.read_points 3 "../data/test_data_3d.csv" in
-  assert_equal (List.length points) 5;
+  assert_equal (List.length points) 9;
   assert_equal
     [
       GroupProject.Point.create 3 [ 1.0; 1.0; 1.0 ];
@@ -79,6 +79,10 @@ let test_read_points _ =
       GroupProject.Point.create 3 [ 3.0; 3.0; 3.0 ];
       GroupProject.Point.create 3 [ 4.0; 4.0; 4.0 ];
       GroupProject.Point.create 3 [ 5.0; 5.0; 5.0 ];
+      GroupProject.Point.create 3 [ 6.0; 6.0; 6.0 ];
+      GroupProject.Point.create 3 [ 7.0; 7.0; 7.0 ];
+      GroupProject.Point.create 3 [ 8.0; 8.0; 8.0 ];
+      GroupProject.Point.create 3 [ 9.0; 9.0; 9.0 ];
     ]
     points
     ~printer:(fun x ->
