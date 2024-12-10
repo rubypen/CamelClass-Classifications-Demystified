@@ -418,6 +418,10 @@ let initialize_gui () =
     let graph_image =
       GMisc.image ~file:"no_graph.png" ~packing:graph_box#add ()
     in
+    let next_button = GButton.button ~label:"Next" ~packing:vbox#pack () in
+
+    (* Disable the next button initially *)
+    next_button#misc#set_sensitive false;
 
     let _divider =
       GMisc.separator `HORIZONTAL
@@ -430,7 +434,9 @@ let initialize_gui () =
 
     let _logsubtitle =
       GMisc.label
-        ~markup:"<span size='30000' weight='bold' underline='single'>Log</span>"
+        ~markup:
+          "<span size='30000' weight='bold' underline='single'>Log \
+           (scrollable)</span>"
         ~selectable:false ~xalign:0.0 ~yalign:0.5
         ~packing:(log_area#pack ~expand:false ~fill:false)
         ()
@@ -450,23 +456,31 @@ let initialize_gui () =
       text_view#misc#set_size_request ~width:scroll_view_width
         ~height:scroll_view_height ()
     in
+    (* Define buffer *)
+    let buffer = text_view#buffer in
+    let auto_scroll () =
+      let end_iter = buffer#end_iter in
+      ignore
+        (text_view#scroll_to_iter end_iter ~within_margin:0.0 ~use_align:true
+           ~xalign:0.0 ~yalign:0.0);
+      buffer#place_cursor ~where:end_iter
+    in
     (* Update current_k when k_spin value changes *)
     ignore
       (k_spin#connect#value_changed ~callback:(fun () ->
            current_k := int_of_float k_spin#value));
     let current_metric = ref "Euclidean" in
-
-    (* Define buffer here *)
-    let buffer = text_view#buffer in
     (* Add Optimize K button *)
     let optimize_k_box = GPack.hbox ~packing:controls_box#pack ~spacing:10 () in
     let optimize_k_button =
       GButton.button ~label:"Optimize K" ~packing:optimize_k_box#pack ()
     in
     let optimize_k_handler () =
-      if List.length !current_points = 0 then
-        buffer#insert "\nNo points loaded. Please select a file first.\n"
-      else begin
+      if List.length !current_points = 0 then begin
+        buffer#insert "\nNo points loaded. Please select a file first.\n";
+        auto_scroll ()
+      end
+      else
         let points = !current_points in
         let num_points = List.length points in
         let dist_fn =
@@ -475,23 +489,28 @@ let initialize_gui () =
         in
 
         buffer#insert "\nCalculating optimal K value...\n";
+        auto_scroll ();
 
         (* Run k-means for a range up to min(6, num_points) *)
         let max_k = min 6 num_points in
         buffer#insert
           (Printf.sprintf "Testing different k values (2 to %d)...\n" max_k);
+        auto_scroll ();
         let cluster_sets = ref [] in
 
         (* Try each k value individually and update progress *)
         for k = 2 to max_k do
           buffer#insert (Printf.sprintf "Testing k=%d...\n" k);
+          auto_scroll ();
           try
             let clusters = run_kmeans k points dist_fn in
             cluster_sets := clusters :: !cluster_sets;
-            buffer#insert (Printf.sprintf "Completed k=%d\n" k)
+            buffer#insert (Printf.sprintf "Completed k=%d\n" k);
+            auto_scroll ()
           with Invalid_argument _ ->
             buffer#insert
-              (Printf.sprintf "Skipped k=%d (not enough points)\n" k)
+              (Printf.sprintf "Skipped k=%d (not enough points)\n" k);
+            auto_scroll ()
         done;
 
         if List.length !cluster_sets = 0 then
@@ -499,17 +518,19 @@ let initialize_gui () =
             "\nCould not find optimal k value. Try with more data points.\n"
         else begin
           buffer#insert "Calculating best k value...\n";
+          auto_scroll ();
           let best_k = find_best_k (List.rev !cluster_sets) points dist_fn in
 
           (* Display final result *)
           buffer#insert (Printf.sprintf "\nOptimal K value found: %d\n" best_k);
+          auto_scroll ();
 
           (* Update the k-spin value *)
           k_spin#set_value (float_of_int best_k);
 
-          buffer#insert "Done! The k-value has been updated.\n"
+          buffer#insert "Done! The k-value has been updated.\n";
+          auto_scroll ()
         end
-      end
     in
     (* Connect the handler *)
     ignore (optimize_k_button#connect#clicked ~callback:optimize_k_handler);
@@ -517,7 +538,8 @@ let initialize_gui () =
     let on_metric_changed () =
       current_metric :=
         if radio_euclidean#active then "Euclidean" else "Manhattan";
-      buffer#insert ("\nDistance metric changed to: " ^ !current_metric ^ "\n")
+      buffer#insert ("\nDistance metric changed to: " ^ !current_metric ^ "\n");
+      auto_scroll ()
     in
 
     (* File selection handler *)
@@ -544,6 +566,7 @@ let initialize_gui () =
           | Some file -> (
               let file_basename = Filename.basename file in
               buffer#set_text ("Loading file: " ^ file ^ "\n");
+              auto_scroll ();
               file_name_label#set_text file_basename;
               try
                 let csv = Csv.load file in
@@ -557,6 +580,7 @@ let initialize_gui () =
                   ^ string_of_int (List.length !current_points)
                   ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
                   ^ "Sample points:\n");
+                auto_scroll ();
 
                 let rec show_n_points points n =
                   match (points, n) with
@@ -564,6 +588,7 @@ let initialize_gui () =
                   | _, 0 -> ()
                   | p :: ps, n ->
                       buffer#insert (GroupProject.Point.to_string p ^ "\n");
+                      auto_scroll ();
                       show_n_points ps (n - 1)
                 in
                 show_n_points !current_points 5;
@@ -573,28 +598,34 @@ let initialize_gui () =
                     "\n\
                      Note: Points are not 2D. Visualization will not be \
                      available.\n";
+                auto_scroll ();
 
                 run_button#misc#set_sensitive true
               with e ->
                 buffer#set_text
                   ("Error reading file: " ^ Printexc.to_string e ^ "\n");
+                auto_scroll ();
                 run_button#misc#set_sensitive false)
           | None ->
               buffer#set_text "No file selected.\n";
+              auto_scroll ();
               file_name_label#set_text "None";
               run_button#misc#set_sensitive false)
       | `CANCEL | `DELETE_EVENT ->
           buffer#set_text "File selection cancelled.\n";
+          auto_scroll ();
           run_button#misc#set_sensitive false
     in
 
     let open_sample_file () =
       buffer#set_text "You selected points from a sample file.\n";
+      auto_scroll ();
       let cwd = Sys.getcwd () in
       let sample_filename = Filename.concat cwd "data/test_data_2d.csv" in
 
       let file_basename = Filename.basename sample_filename in
       buffer#insert ("Loading file: " ^ sample_filename ^ "\n");
+      auto_scroll ();
       file_name_label#set_text file_basename;
       let csv = Csv.load sample_filename in
       let first_line = List.hd csv in
@@ -607,6 +638,7 @@ let initialize_gui () =
         ^ string_of_int (List.length !current_points)
         ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
         ^ "Sample points:\n");
+      auto_scroll ();
 
       let rec show_n_points points n =
         match (points, n) with
@@ -614,6 +646,7 @@ let initialize_gui () =
         | _, 0 -> ()
         | p :: ps, n ->
             buffer#insert (GroupProject.Point.to_string p ^ "\n");
+            auto_scroll ();
             show_n_points ps (n - 1)
       in
       show_n_points !current_points 5;
@@ -622,12 +655,14 @@ let initialize_gui () =
 
     let open_random_file () =
       buffer#set_text "You selected points from a random points generator.\n";
+      auto_scroll ();
 
       let cwd = Sys.getcwd () in
       let random_filename = Filename.concat cwd "data/random.csv" in
 
       let file_basename = Filename.basename random_filename in
       buffer#insert ("Loading file: " ^ random_filename ^ "\n");
+      auto_scroll ();
       file_name_label#set_text file_basename;
       let csv = Csv.load random_filename in
       let first_line = List.hd csv in
@@ -640,6 +675,7 @@ let initialize_gui () =
         ^ string_of_int (List.length !current_points)
         ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
         ^ "Sample points:\n");
+      auto_scroll ();
 
       let rec show_n_points points n =
         match (points, n) with
@@ -647,6 +683,7 @@ let initialize_gui () =
         | _, 0 -> ()
         | p :: ps, n ->
             buffer#insert (GroupProject.Point.to_string p ^ "\n");
+            auto_scroll ();
             show_n_points ps (n - 1)
       in
       show_n_points !current_points 5;
@@ -680,64 +717,75 @@ let initialize_gui () =
       | [] ->
           Printf.printf "No points loaded\n%!";
           (* Debug print *)
-          buffer#insert "\nNo points loaded. Please select a file first.\n"
-      | points -> (
-          try
-            Printf.printf "Points loaded, running clustering...\n%!";
-            (* Debug print *)
-            let dist_fn =
-              if radio_euclidean#active then euclidean_distance
-              else manhattan_distance
-            in
-            buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
-            Printf.printf "Running k-means with k=%d...\n%!" !current_k;
-            (* Debug print *)
-            let clusters = run_custom_kmeans !current_k points dist_fn in
-            buffer#insert "Clustering completed.\n";
-            Printf.printf "Clustering completed, creating visualization...\n%!";
+          buffer#insert "\nNo points loaded. Please select a file first.\n";
+          auto_scroll ()
+      | points ->
+          (try
+             Printf.printf "Points loaded, running clustering...\n%!";
+             (* Debug print *)
+             let dist_fn =
+               if radio_euclidean#active then euclidean_distance
+               else manhattan_distance
+             in
+             buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
+             auto_scroll ();
+             Printf.printf "Running k-means with k=%d...\n%!" !current_k;
+             (* Debug print *)
+             let clusters = run_custom_kmeans !current_k points dist_fn in
+             buffer#insert "Clustering completed.\n";
+             auto_scroll ();
+             Printf.printf "Clustering completed, creating visualization...\n%!";
 
-            (* Debug print *)
-            if !current_dim == 1 then begin
-              Printf.printf "Creating 1D visualization...\n%!";
-              (* Debug print *)
-              let _ = plot_graph "1D" points clusters () in
-              buffer#insert "Visualization saved to 'graph.png'\n";
-              graph_image#set_file "graph.png"
-            end
-            else if !current_dim == 2 then begin
-              Printf.printf "Creating 2D visualization...\n%!";
-              (* Debug print *)
-              let _ = plot_graph "2D" points clusters () in
-              buffer#insert "Visualization saved to 'graph.png'\n";
-              graph_image#set_file "graph.png"
-            end
-            else if !current_dim == 3 then begin
-              Printf.printf "Creating 3D visualization...\n%!";
-              (* Debug print *)
-              let _ = plot_graph "3D" points clusters () in
-              buffer#insert "Visualization saved to 'graph.png'\n";
-              graph_image#set_file "graph.png"
-            end
-            else
-              buffer#insert
-                "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
+             (* Debug print *)
+             if !current_dim == 1 then begin
+               Printf.printf "Creating 1D visualization...\n%!";
+               (* Debug print *)
+               let _ = plot_graph "1D" points clusters () in
+               buffer#insert "Visualization saved to 'graph.png'\n";
+               auto_scroll ();
+               graph_image#set_file "graph.png"
+             end
+             else if !current_dim == 2 then begin
+               Printf.printf "Creating 2D visualization...\n%!";
+               (* Debug print *)
+               let _ = plot_graph "2D" points clusters () in
+               buffer#insert "Visualization saved to 'graph.png'\n";
+               auto_scroll ();
+               graph_image#set_file "graph.png"
+             end
+             else if !current_dim == 3 then begin
+               Printf.printf "Creating 3D visualization...\n%!";
+               (* Debug print *)
+               let _ = plot_graph "3D" points clusters () in
+               buffer#insert "Visualization saved to 'graph.png'\n";
+               auto_scroll ();
+               graph_image#set_file "graph.png"
+             end
+             else
+               buffer#insert
+                 "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
+             auto_scroll ();
 
-            Printf.printf "Visualization completed\n%!";
-            (* Debug print *)
-            List.iteri
-              (fun i cluster ->
-                buffer#insert
-                  ("Cluster "
-                  ^ string_of_int (i + 1)
-                  ^ " center: "
-                  ^ GroupProject.Point.to_string cluster
-                  ^ "\n"))
-              clusters
-          with e ->
-            Printf.printf "Error occurred: %s\n%!" (Printexc.to_string e);
-            (* Debug print *)
-            buffer#insert
-              ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"))
+             Printf.printf "Visualization completed\n%!";
+             (* Make Next button sensitive *)
+             next_button#misc#set_sensitive true;
+             (* Debug print *)
+             List.iteri
+               (fun i cluster ->
+                 buffer#insert
+                   ("Cluster "
+                   ^ string_of_int (i + 1)
+                   ^ " center: "
+                   ^ GroupProject.Point.to_string cluster
+                   ^ "\n");
+                 auto_scroll ())
+               clusters
+           with e ->
+             Printf.printf "Error occurred: %s\n%!" (Printexc.to_string e);
+             (* Debug print *)
+             buffer#insert
+               ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"));
+          auto_scroll ()
     in
 
     (* Connect signals *)
@@ -762,9 +810,7 @@ let initialize_gui () =
     buffer#set_text
       "Welcome to CamelClass K-means Clustering\n\
        Please select a data file to begin.\n";
-
-    let next_button = GButton.button ~label:"Next" ~packing:vbox#pack () in
-    window#misc#show_all ();
+    auto_scroll ();
     ignore
       (next_button#connect#clicked ~callback:(fun () ->
            transition4 !current_k !current_points))
@@ -895,11 +941,13 @@ let initialize_gui () =
         ())
       clusters;
 
+    let back_button = GButton.button ~label:"Back" ~packing:stats_box#pack () in
+    ignore (back_button#connect#clicked ~callback:(fun () -> transition3 ()));
     let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
-    window#misc#show_all ();
     ignore
       (next_button#connect#clicked ~callback:(fun () ->
-           transition5 current_k current_points))
+           transition5 current_k current_points));
+    window#misc#show_all ()
   and transition5 current_k current_points =
     (* Transition 7: Plotting *)
     clean window;
