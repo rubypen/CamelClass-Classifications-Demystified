@@ -57,6 +57,7 @@ let initialize_gui () =
 
   (* Create choice reference *)
   let choice = ref "" in
+  let chosen_colors = ref [||] in
 
   (* Create main vertical box for layout *)
   let vbox = GPack.vbox ~packing:window#add () in
@@ -77,7 +78,7 @@ let initialize_gui () =
 
   (* Create drawing area *)
   (* let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
-     drawing_area#misc#set_size_request ~width:600 ~height:400 (); *)
+  drawing_area#misc#set_size_request ~width:600 ~height:400 (); *)
 
   (* Create controls area *)
   let controls_box = GPack.hbox ~spacing:5 ~packing:vbox#pack () in
@@ -113,7 +114,7 @@ let initialize_gui () =
     clean window;
     let controls_box =
       GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
-        ~border_width:300 ()
+        ~border_width:400 ()
     in
     controls_box#set_homogeneous false;
 
@@ -364,10 +365,18 @@ let initialize_gui () =
     in
 
     (* [square_selected] marks a square as selected when it is clicked on *)
-    let square_selected name square =
-      if Hashtbl.mem selected_squares name then
-        Hashtbl.remove selected_squares name
-      else Hashtbl.add selected_squares name ();
+    let square_selected name color square =
+      (if Hashtbl.mem selected_squares name then (
+         chosen_colors :=
+           !chosen_colors |> Array.to_list
+           |> List.filter (fun (n, _) -> n <> name)
+           |> Array.of_list;
+         Hashtbl.remove selected_squares name)
+       else
+         let k = int_of_float k_spin#value in
+         if Array.length !chosen_colors < k then (
+           chosen_colors := Array.append !chosen_colors [| (name, color) |];
+           Hashtbl.add selected_squares name ()));
 
       (* Draw an overlay that says "selected" onto the square *)
       square#misc#queue_draw ();
@@ -400,7 +409,7 @@ let initialize_gui () =
         (* Make the squares selectable *)
         ignore
           (square#event#connect#button_press ~callback:(fun _ ->
-               square_selected name square)))
+               square_selected name color square)))
       colors;
 
     let _divider =
@@ -593,7 +602,7 @@ let initialize_gui () =
                   ("Successfully loaded "
                   ^ string_of_int (List.length !current_points)
                   ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
-                  ^ "Few Sample points:\n");
+                  ^ "Sample points:\n");
                 auto_scroll ();
 
                 let rec show_n_points points n =
@@ -651,7 +660,7 @@ let initialize_gui () =
         ("Successfully loaded "
         ^ string_of_int (List.length !current_points)
         ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
-        ^ "Your points:\n");
+        ^ "Sample points:\n");
       auto_scroll ();
 
       let rec show_n_points points n =
@@ -663,7 +672,7 @@ let initialize_gui () =
             auto_scroll ();
             show_n_points ps (n - 1)
       in
-      show_n_points !current_points (List.length !current_points);
+      show_n_points !current_points 5;
       run_button#misc#set_sensitive true
     in
 
@@ -688,7 +697,7 @@ let initialize_gui () =
         ("Successfully loaded "
         ^ string_of_int (List.length !current_points)
         ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
-        ^ "Few Sample points:\n");
+        ^ "Sample points:\n");
       auto_scroll ();
 
       let rec show_n_points points n =
@@ -704,23 +713,26 @@ let initialize_gui () =
       run_button#misc#set_sensitive true
     in
 
-    let create_2d_graph filename (points : t list) clusters =
+    let create_2d_graph filename (points : t list) clusters colors =
       GroupProject.Visualizations.create_2d_graph filename points clusters
+        colors
     in
 
-    let create_1d_graph filename (points : t list) clusters =
+    let create_1d_graph filename (points : t list) clusters colors =
       GroupProject.Visualizations.create_1d_graph filename points clusters
+        colors
     in
 
-    let create_3d_graph filename (points : t list) clusters =
+    let create_3d_graph filename (points : t list) clusters colors =
       GroupProject.Visualizations.create_3d_graph filename points clusters
+        colors
     in
 
-    let plot_graph view points clusters () =
+    let plot_graph view points clusters colors () =
       let filename = "graph.png" in
-      if view = "1D" then create_1d_graph filename points clusters
-      else if view = "2D" then create_2d_graph filename points clusters
-      else create_3d_graph filename points clusters
+      if view = "1D" then create_1d_graph filename points clusters colors
+      else if view = "2D" then create_2d_graph filename points clusters colors
+      else create_3d_graph filename points clusters colors
     in
 
     (* Run k-means handler *)
@@ -750,11 +762,45 @@ let initialize_gui () =
              auto_scroll ();
              Printf.printf "Clustering completed, creating visualization...\n%!";
 
+             let select_random_colors chosen_colors defined_colors k =
+               let chosen_list = Array.to_list chosen_colors in
+
+               let remaining_colors =
+                 Array.to_list defined_colors
+                 |> List.filter (fun (name, _) ->
+                        not (List.mem_assoc name chosen_list))
+               in
+
+               let rec pick_random_elements acc colors n =
+                 if n <= 0 || colors = [] then acc
+                 else
+                   let idx = Random.int (List.length colors) in
+                   let chosen_color = List.nth colors idx in
+                   let new_colors =
+                     List.filter (fun x -> x <> chosen_color) colors
+                   in
+                   pick_random_elements (chosen_color :: acc) new_colors (n - 1)
+               in
+
+               (* Randomly select the amount of colors needed to meet k and add
+                  to the list of already chosen colors *)
+               let needed_count = max 0 (k - Array.length chosen_colors) in
+               let additional_colors =
+                 pick_random_elements [] remaining_colors needed_count
+               in
+               Array.append chosen_colors (Array.of_list additional_colors)
+             in
+
+             let colors_to_use =
+               if Array.length !chosen_colors < !current_k then
+                 select_random_colors !chosen_colors colors !current_k
+               else !chosen_colors
+             in
+
              (* Debug print *)
              if !current_dim == 1 then begin
                Printf.printf "Creating 1D visualization...\n%!";
-               (* Debug print *)
-               let _ = plot_graph "1D" points clusters () in
+               let _ = plot_graph "1D" points clusters colors_to_use () in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
                graph_image#set_file "graph.png"
@@ -762,7 +808,7 @@ let initialize_gui () =
              else if !current_dim == 2 then begin
                Printf.printf "Creating 2D visualization...\n%!";
                (* Debug print *)
-               let _ = plot_graph "2D" points clusters () in
+               let _ = plot_graph "2D" points clusters colors_to_use () in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
                graph_image#set_file "graph.png"
@@ -770,7 +816,7 @@ let initialize_gui () =
              else if !current_dim == 3 then begin
                Printf.printf "Creating 3D visualization...\n%!";
                (* Debug print *)
-               let _ = plot_graph "3D" points clusters () in
+               let _ = plot_graph "3D" points clusters colors_to_use () in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
                graph_image#set_file "graph.png"
@@ -821,7 +867,9 @@ let initialize_gui () =
 
     (* Initialize state *)
     (* run_button#misc#set_sensitive false; *)
-    buffer#set_text "Welcome to CamelClass K-means Clustering\n";
+    buffer#set_text
+      "Welcome to CamelClass K-means Clustering\n\
+       Please select a data file to begin.\n";
     auto_scroll ();
     ignore
       (next_button#connect#clicked ~callback:(fun () ->
@@ -832,25 +880,16 @@ let initialize_gui () =
     let stats_box = GPack.vbox ~packing:window#add () in
     let _statistics_title =
       GMisc.label
-        ~markup:
-          "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
-        ~yalign:0.0 ~height:100
-        ~packing:(stats_box#pack ~expand:true ~fill:false)
+        ~markup:"<span size='50000'><b>K-Means Cluster Statistics</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:50
+        ~packing:(stats_box#pack ~expand:true ~fill:true)
         ()
     in
 
     let clusters =
       run_custom_kmeans current_k current_points euclidean_distance
     in
-    let cluster_stats_scroll =
-      GBin.scrolled_window ~hpolicy:`AUTOMATIC ~vpolicy:`AUTOMATIC
-        ~packing:(stats_box#pack ~expand:true ~fill:true)
-        ()
-    in
-    cluster_stats_scroll#set_hpolicy `AUTOMATIC;
-    let cluster_stats_box = GPack.vbox ~packing:stats_box#add ~spacing:10 () in
-    cluster_stats_box#set_border_width 10;
+    let cluster_stats_box = GPack.vbox ~packing:stats_box#add ~spacing:20 () in
 
     let total_points = List.length current_points in
     let _total_points_label =
@@ -859,7 +898,7 @@ let initialize_gui () =
           ("<span size='20000'>Total Points: " ^ string_of_int total_points
          ^ "</span>")
         ~selectable:false ~xalign:0.5 ~yalign:0.5
-        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false ~padding:0)
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
         ()
     in
 
@@ -894,16 +933,6 @@ let initialize_gui () =
         ()
     in
     _divider#misc#set_size_request ~height:2 ();
-
-    let scrolled_window =
-      GBin.scrolled_window ~hpolicy:`AUTOMATIC ~vpolicy:`AUTOMATIC
-        ~packing:(stats_box#pack ~expand:true ~fill:true)
-        ()
-    in
-    let cluster_stats_box =
-      GPack.vbox ~spacing:10 ~packing:scrolled_window#add ()
-    in
-    scrolled_window#misc#set_size_request ~width:800 ~height:400 ();
 
     List.iteri
       (fun i cluster ->
@@ -1707,10 +1736,7 @@ let () =
       Printf.printf "%s\n\n" authors_title;
       Printf.printf "%s %s\n\n" title debrief;
       Printf.printf "%s"
-        (clr_ Reg Cyan
-           "Would you like to use [GUI] or [I/O] mode?\n\
-            NOTE: If selecting [GUI] mode, it will open a new window in your \
-            desktop. ");
+        (clr_ Reg Cyan "Would you like to use [GUI] or [I/O] mode? ");
       let input = String.lowercase_ascii (read_line ()) in
       match input with
       | "gui" -> initialize_gui ()
