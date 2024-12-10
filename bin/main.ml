@@ -566,6 +566,7 @@ let initialize_gui () =
           | Some file -> (
               let file_basename = Filename.basename file in
               buffer#set_text ("Loading file: " ^ file ^ "\n");
+              auto_scroll ();
               file_name_label#set_text file_basename;
               try
                 let csv = Csv.load file in
@@ -603,18 +604,22 @@ let initialize_gui () =
               with e ->
                 buffer#set_text
                   ("Error reading file: " ^ Printexc.to_string e ^ "\n");
+                auto_scroll ();
                 run_button#misc#set_sensitive false)
           | None ->
               buffer#set_text "No file selected.\n";
+              auto_scroll ();
               file_name_label#set_text "None";
               run_button#misc#set_sensitive false)
       | `CANCEL | `DELETE_EVENT ->
           buffer#set_text "File selection cancelled.\n";
+          auto_scroll ();
           run_button#misc#set_sensitive false
     in
 
     let open_sample_file () =
       buffer#set_text "You selected points from a sample file.\n";
+      auto_scroll ();
       let cwd = Sys.getcwd () in
       let sample_filename = Filename.concat cwd "data/test_data_2d.csv" in
 
@@ -650,6 +655,7 @@ let initialize_gui () =
 
     let open_random_file () =
       buffer#set_text "You selected points from a random points generator.\n";
+      auto_scroll ();
 
       let cwd = Sys.getcwd () in
       let random_filename = Filename.concat cwd "data/random.csv" in
