@@ -53,7 +53,7 @@ let initialize_gui () =
 
   (* Create the window *)
   let window = GWindow.window ~title:"CamelClass" ~show:true () in
-  window#fullscreen ();
+  window#maximize ();
 
   (* Create choice reference *)
   let choice = ref "" in
