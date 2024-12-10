@@ -77,7 +77,7 @@ let initialize_gui () =
 
   (* Create drawing area *)
   (* let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
-  drawing_area#misc#set_size_request ~width:600 ~height:400 (); *)
+     drawing_area#misc#set_size_request ~width:600 ~height:400 (); *)
 
   (* Create controls area *)
   let controls_box = GPack.hbox ~spacing:5 ~packing:vbox#pack () in
@@ -113,7 +113,7 @@ let initialize_gui () =
     clean window;
     let controls_box =
       GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
-        ~border_width:400 ()
+        ~border_width:300 ()
     in
     controls_box#set_homogeneous false;
 
@@ -651,7 +651,7 @@ let initialize_gui () =
         ("Successfully loaded "
         ^ string_of_int (List.length !current_points)
         ^ " points of dimension " ^ string_of_int dim ^ "\n\n"
-        ^ "Sample points:\n");
+        ^ "Your points:\n");
       auto_scroll ();
 
       let rec show_n_points points n =
@@ -663,7 +663,7 @@ let initialize_gui () =
             auto_scroll ();
             show_n_points ps (n - 1)
       in
-      show_n_points !current_points 5;
+      show_n_points !current_points (List.length !current_points);
       run_button#misc#set_sensitive true
     in
 
@@ -821,29 +821,37 @@ let initialize_gui () =
 
     (* Initialize state *)
     (* run_button#misc#set_sensitive false; *)
-    buffer#set_text
-      "Welcome to CamelClass K-means Clustering\n\
-       Please select a data file to begin.\n";
+    buffer#set_text "Welcome to CamelClass K-means Clustering\n";
     auto_scroll ();
     ignore
       (next_button#connect#clicked ~callback:(fun () ->
            transition4 !current_k !current_points))
   and transition4 current_k current_points =
+    (* ----------------------------------------------------------- *)
     (* Transition 6: Show statistics *)
     clean window;
     let stats_box = GPack.vbox ~packing:window#add () in
     let _statistics_title =
       GMisc.label
-        ~markup:"<span size='50000'><b>K-Means Cluster Statistics</b></span>"
-        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:50
-        ~packing:(stats_box#pack ~expand:true ~fill:true)
+        ~markup:
+          "<span size='50000'><b>K-Means Cluster Statistics \n\
+          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
+        ~yalign:0.0 ~height:100
+        ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
 
     let clusters =
       run_custom_kmeans current_k current_points euclidean_distance
     in
-    let cluster_stats_box = GPack.vbox ~packing:stats_box#add ~spacing:20 () in
+    let cluster_stats_scroll =
+      GBin.scrolled_window ~hpolicy:`AUTOMATIC ~vpolicy:`AUTOMATIC
+        ~packing:(stats_box#pack ~expand:true ~fill:true)
+        ()
+    in
+    cluster_stats_scroll#set_hpolicy `AUTOMATIC;
+    let cluster_stats_box = GPack.vbox ~packing:stats_box#add ~spacing:10 () in
+    cluster_stats_box#set_border_width 10;
 
     let total_points = List.length current_points in
     let _total_points_label =
@@ -852,7 +860,7 @@ let initialize_gui () =
           ("<span size='20000'>Total Points: " ^ string_of_int total_points
          ^ "</span>")
         ~selectable:false ~xalign:0.5 ~yalign:0.5
-        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false)
+        ~packing:(cluster_stats_box#pack ~expand:false ~fill:false ~padding:0)
         ()
     in
 
@@ -887,6 +895,16 @@ let initialize_gui () =
         ()
     in
     _divider#misc#set_size_request ~height:2 ();
+
+    let scrolled_window =
+      GBin.scrolled_window ~hpolicy:`AUTOMATIC ~vpolicy:`AUTOMATIC
+        ~packing:(stats_box#pack ~expand:true ~fill:true)
+        ()
+    in
+    let cluster_stats_box =
+      GPack.vbox ~spacing:10 ~packing:scrolled_window#add ()
+    in
+    scrolled_window#misc#set_size_request ~width:800 ~height:400 ();
 
     List.iteri
       (fun i cluster ->
