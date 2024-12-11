@@ -399,7 +399,7 @@ let initialize_gui () =
 
   let project_title =
     GMisc.label ~markup:"<span size='100000'><b>CamelClass</b></span>"
-      ~selectable:false ~yalign:0.0 ()
+      ~selectable:false ~xalign:0.5 ~yalign:0.0 ()
   in
   fixed#put
     ~x:(int_of_float (float_of_int center_x +. (0.1 *. float_of_int center_x)))
@@ -407,11 +407,11 @@ let initialize_gui () =
 
   let project_subtitle =
     GMisc.label ~markup:"<span size='35000'>K-means Clustering</span>"
-      ~selectable:false ~yalign:0.0 ()
+      ~selectable:false ~xalign:0.5 ~yalign:0.0 ()
   in
   fixed#put
-    ~x:(int_of_float (float_of_int center_x +. (0.35 *. float_of_int center_x)))
-    ~y:(center_y + 50) project_subtitle#coerce;
+    ~x:(int_of_float (float_of_int center_x +. (0.3 *. float_of_int center_x)))
+    ~y:(center_y + 75) project_subtitle#coerce;
 
   let start_button = GButton.button ~label:"Start" () in
   start_button#misc#set_size_request ~width:button_width ~height:button_height
@@ -676,7 +676,8 @@ let initialize_gui () =
         ~markup:
           (Printf.sprintf
              "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-              <span size='15000'>Choose up to %d colors</span>" !current_k)
+              <span size='15000'>Choose up to %d colors</span>"
+             !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
@@ -869,7 +870,8 @@ let initialize_gui () =
            let markup_text =
              Printf.sprintf
                "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-                <span size='15000'>Choose up to %d colors</span>" !current_k
+                <span size='15000'>Choose up to %d colors</span>"
+               !current_k
            in
            cluster_colors_label#set_label markup_text));
     let current_metric = ref "Euclidean" in
@@ -1029,7 +1031,7 @@ let initialize_gui () =
       buffer#set_text "You selected points from a sample file.\n";
       auto_scroll ();
       let cwd = Sys.getcwd () in
-      let sample_filename = Filename.concat cwd "data/test_data_2d.csv" in
+      let sample_filename = Filename.concat cwd "data/sample.csv" in
 
       let file_basename = Filename.basename sample_filename in
       buffer#insert ("Loading file: " ^ sample_filename ^ "\n");
@@ -1291,8 +1293,8 @@ let initialize_gui () =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
-        ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
