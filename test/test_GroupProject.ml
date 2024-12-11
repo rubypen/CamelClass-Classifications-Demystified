@@ -49,7 +49,7 @@ let test_distance _ =
   assert_equal dist_man 22.0 ~printer:string_of_float
 
 let test_read_points _ =
-  let points = CsvReaderImpl.read_points 1 "../data/test_data.csv" in
+  let points = read_points 1 "../data/test_data.csv" in
   assert_equal (List.length points) 3;
   assert_equal
     [
@@ -60,7 +60,7 @@ let test_read_points _ =
     points
     ~printer:(fun x ->
       "[" ^ list_to_string (List.map GroupProject.Point.to_string x) ^ "]");
-  let points = CsvReaderImpl.read_points 2 "../data/test_data_2d.csv" in
+  let points = read_points 2 "../data/test_data_2d.csv" in
   assert_equal (List.length points) 2;
   assert_equal
     [
@@ -70,7 +70,7 @@ let test_read_points _ =
     points
     ~printer:(fun x ->
       "[" ^ list_to_string (List.map GroupProject.Point.to_string x) ^ "]");
-  let points = CsvReaderImpl.read_points 3 "../data/test_data_3d.csv" in
+  let points = read_points 3 "../data/test_data_3d.csv" in
   assert_equal (List.length points) 9;
   assert_equal
     [

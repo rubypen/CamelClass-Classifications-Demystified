@@ -443,7 +443,7 @@ let initialize_gui () =
     (* Clean existing window *)
     clean window;
     let controls_box =
-      GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
+      GPack.vbox ~width:60 ~height:300 ~packing:window#add ~spacing:20
         ~border_width:300 ()
     in
     controls_box#set_homogeneous false;
@@ -926,7 +926,7 @@ let initialize_gui () =
                 let first_line = List.hd csv in
                 let dim = List.length first_line in
                 current_dim := dim;
-                current_points := CsvReaderImpl.read_points dim file;
+                current_points := read_points dim file;
 
                 buffer#insert
                   ("Successfully loaded "
@@ -984,7 +984,7 @@ let initialize_gui () =
       let first_line = List.hd csv in
       let dim = List.length first_line in
       current_dim := dim;
-      current_points := CsvReaderImpl.read_points dim sample_filename;
+      current_points := read_points dim sample_filename;
 
       buffer#insert
         ("Successfully loaded "
@@ -1021,7 +1021,7 @@ let initialize_gui () =
       let first_line = List.hd csv in
       let dim = List.length first_line in
       current_dim := dim;
-      current_points := CsvReaderImpl.read_points dim random_filename;
+      current_points := read_points dim random_filename;
 
       buffer#insert
         ("Successfully loaded "
@@ -1354,7 +1354,7 @@ let initialize_gui () =
     (* Transition 8: End Screen *)
     clean window;
     let controls_box =
-      GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
+      GPack.vbox ~width:60 ~height:300 ~packing:window#add ~spacing:20
         ~border_width:300 ()
     in
 
@@ -1382,7 +1382,7 @@ let initialize_gui () =
       start ();
       clean window;
       let controls_box =
-        GPack.vbox ~height:400 ~width:600 ~spacing:5 ~border_width:50
+        GPack.vbox ~height:300 ~width:600 ~spacing:5 ~border_width:50
           ~packing:window#add ()
       in
       controls_box#set_homogeneous true;
@@ -1577,7 +1577,7 @@ let get_dimension_from_csv csv =
 (** [print_points file d] prints the points of dimension [d] in [file]. *)
 let print_points file d =
   try
-    let p_list = List.map to_string (CsvReaderImpl.read_points d file) in
+    let p_list = List.map to_string (read_points d file) in
     List.iter (fun x -> Printf.printf "%s\n" x) p_list
   with _ -> failwith "Bad Points CSV"
 
@@ -1635,7 +1635,7 @@ let prompt_for_distfn () =
     calculated under [dist_metric] between the points [p] in csv and a dummy
     point. *)
 let distances p dim dist_metric =
-  let p_list = CsvReaderImpl.read_points dim p in
+  let p_list = read_points dim p in
   let dp = dummy_pt dim in
   List.map
     (fun p ->
@@ -1914,7 +1914,7 @@ let prompt_to_classify clusters dim dist_fn =
     dataset in [csv] and handles user interaction with processing and saving the
     data. *)
 let run_kmeans_ui csv dim point_count =
-  let points = CsvReaderImpl.read_points dim csv in
+  let points = read_points dim csv in
   let dist_fn =
     let err_msg = clr_ Reg Red "Invalid metric." in
     match prompt_for_distfn () with
