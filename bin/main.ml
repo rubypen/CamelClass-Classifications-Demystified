@@ -356,7 +356,7 @@ let create_3d_graph filename points clusters colors distance_metric =
   plend ()
 
 let plot_graph view points clusters colors distance_metric () =
-  let filename = "data/pictures/graph.png" in
+  let filename = "pictures/graph.png" in
   match view with
   | "1D" -> create_1d_graph filename points clusters colors distance_metric
   | "2D" -> create_2d_graph filename points clusters colors distance_metric
@@ -374,22 +374,17 @@ let initialize_gui () =
   let init = GMain.init () in
   ignore init;
 
-  (* Create the window *)
   let window = GWindow.window ~title:"CamelClass" ~show:true () in
   window#maximize ();
 
-  (* Create choice reference *)
-  (* Create choice reference *)
   let choice = ref "" in
   let chosen_colors = ref [||] in
   let current_metric_path = ref GroupProject.Point.euclidean_distance in
 
-  (* Create main container as a fixed layout *)
   let fixed = GPack.fixed ~packing:window#add () in
 
-  (* Load and set the background image *)
   let cwd = Sys.getcwd () in
-  let bg_file = Filename.concat cwd "data/pictures/desertcamelkmeans.png" in
+  let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
   let screen_width = Gdk.Screen.width () in
   let screen_height = Gdk.Screen.height () in
   let pixbuf =
@@ -398,13 +393,11 @@ let initialize_gui () =
   in
   let _background = GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) () in
 
-  (* Calculate center position for text and button *)
   let text_width, text_height = (600, 200) in
   let button_width, button_height = (200, 80) in
   let center_x = (screen_width - text_width) / 2 in
   let center_y = (screen_height - text_height - button_height) / 2 in
 
-  (* Add title labels centered *)
   let project_title =
     GMisc.label ~markup:"<span size='100000'><b>CamelClass</b></span>"
       ~selectable:false ~yalign:0.0 ()
@@ -421,7 +414,6 @@ let initialize_gui () =
     ~x:(int_of_float (float_of_int center_x +. (0.35 *. float_of_int center_x)))
     ~y:(center_y + 50) project_subtitle#coerce;
 
-  (* Add centered Start button *)
   let start_button = GButton.button ~label:"Start" () in
   start_button#misc#set_size_request ~width:button_width ~height:button_height
     ();
@@ -458,7 +450,7 @@ let initialize_gui () =
 
     (* Load your background image as before *)
     let cwd = Sys.getcwd () in
-    let bg_file = Filename.concat cwd "data/pictures/desertcamelkmeans.png" in
+    let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
     let pixbuf =
       GdkPixbuf.from_file_at_size bg_file ~width:screen_width
         ~height:screen_height
@@ -821,7 +813,7 @@ let initialize_gui () =
     in
     (* Put the PNG file in the GUI *)
     let graph_image =
-      GMisc.image ~file:"data/pictures/no_graph.png" ~packing:graph_box#add ()
+      GMisc.image ~file:"pictures/no_graph.png" ~packing:graph_box#add ()
     in
     let next_button = GButton.button ~label:"Next ▶" ~packing:vbox#pack () in
 
@@ -992,7 +984,7 @@ let initialize_gui () =
                 let first_line = List.hd csv in
                 let dim = List.length first_line in
                 current_dim := dim;
-                current_points := CsvReaderImpl.read_points dim file;
+                current_points := read_points dim file;
 
                 buffer#insert
                   ("Successfully loaded "
@@ -1050,7 +1042,7 @@ let initialize_gui () =
       let first_line = List.hd csv in
       let dim = List.length first_line in
       current_dim := dim;
-      current_points := CsvReaderImpl.read_points dim sample_filename;
+      current_points := read_points dim sample_filename;
 
       buffer#insert
         ("Successfully loaded "
@@ -1087,7 +1079,7 @@ let initialize_gui () =
       let first_line = List.hd csv in
       let dim = List.length first_line in
       current_dim := dim;
-      current_points := CsvReaderImpl.read_points dim random_filename;
+      current_points := read_points dim random_filename;
 
       buffer#insert
         ("Successfully loaded "
@@ -1125,7 +1117,7 @@ let initialize_gui () =
     in
 
     let plot_graph view points clusters colors distance_metric () =
-      let filename = "data/pictures/graph.png" in
+      let filename = "pictures/graph.png" in
       if view = "1D" then
         create_1d_graph filename points clusters colors distance_metric
       else if view = "2D" then
@@ -1135,30 +1127,21 @@ let initialize_gui () =
 
     (* Run k-means handler *)
     let run_kmeans () =
-      Printf.printf "Starting run_kmeans...\n%!";
-      (* Debug print *)
       match !current_points with
       | [] ->
-          Printf.printf "No points loaded\n%!";
-          (* Debug print *)
           buffer#insert "\nNo points loaded. Please select a file first.\n";
           auto_scroll ()
       | points ->
           (try
-             Printf.printf "Points loaded, running clustering...\n%!";
-             (* Debug print *)
              let dist_fn =
                if radio_euclidean#active then euclidean_distance
                else manhattan_distance
              in
              buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
              auto_scroll ();
-             Printf.printf "Running k-means with k=%d...\n%!" !current_k;
-             (* Debug print *)
              let clusters = run_custom_kmeans !current_k points dist_fn in
              buffer#insert "Clustering completed.\n";
              auto_scroll ();
-             Printf.printf "Clustering completed, creating visualization...\n%!";
 
              let select_random_colors chosen_colors defined_colors k =
                let chosen_list = Array.to_list chosen_colors in
@@ -1197,47 +1180,40 @@ let initialize_gui () =
 
              (* Debug print *)
              if !current_dim == 1 then begin
-               Printf.printf "Creating 1D visualization...\n%!";
                let _ =
                  plot_graph "1D" points clusters colors_to_use
                    !current_metric_path ()
                in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
-               graph_image#set_file "data/pictures/graph.png"
+               graph_image#set_file "pictures/graph.png"
              end
              else if !current_dim == 2 then begin
-               Printf.printf "Creating 2D visualization...\n%!";
-               (* Debug print *)
                let _ =
                  plot_graph "2D" points clusters colors_to_use
                    !current_metric_path ()
                in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
-               graph_image#set_file "data/pictures/graph.png"
+               graph_image#set_file "pictures/graph.png"
              end
              else if !current_dim == 3 then begin
-               Printf.printf "Creating 3D visualization...\n%!";
-               (* Debug print *)
                let _ =
                  plot_graph "3D" points clusters colors_to_use
                    !current_metric_path ()
                in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
-               graph_image#set_file "data/pictures/graph.png"
+               graph_image#set_file "pictures/graph.png"
              end
              else
                buffer#insert
                  "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
              auto_scroll ();
 
-             Printf.printf "Visualization completed\n%!";
              chosen_colors := [||];
-             (* Make Next button sensitive *)
              next_button#misc#set_sensitive true;
-             (* Debug print *)
+
              List.iteri
                (fun i cluster ->
                  buffer#insert
@@ -1249,8 +1225,6 @@ let initialize_gui () =
                  auto_scroll ())
                clusters
            with e ->
-             Printf.printf "Error occurred: %s\n%!" (Printexc.to_string e);
-             (* Debug print *)
              buffer#insert
                ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"));
           auto_scroll ()
@@ -1302,7 +1276,7 @@ let initialize_gui () =
 
     (* Load your background image *)
     let cwd = Sys.getcwd () in
-    let bg_file = Filename.concat cwd "data/pictures/desertcamelkmeans.png" in
+    let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
     let pixbuf =
       GdkPixbuf.from_file_at_size bg_file ~width:screen_width
         ~height:screen_height
@@ -1512,7 +1486,7 @@ let initialize_gui () =
     let fixed = GPack.fixed ~packing:window#add () in
 
     let cwd = Sys.getcwd () in
-    let bg_file = Filename.concat cwd "data/pictures/desertcamelkmeans.png" in
+    let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
     let pixbuf =
       GdkPixbuf.from_file_at_size bg_file ~width:screen_width
         ~height:screen_height
@@ -1570,7 +1544,7 @@ let initialize_gui () =
 
       (* Load your background image *)
       let cwd = Sys.getcwd () in
-      let bg_file = Filename.concat cwd "data/pictures/desertcamelkmeans.png" in
+      let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
       let pixbuf =
         GdkPixbuf.from_file_at_size bg_file ~width:screen_width
           ~height:screen_height
@@ -1626,7 +1600,7 @@ let initialize_gui () =
       in
 
       (* Adding names of authors *)
-      let picture_file = Filename.concat cwd "data/pictures/camel1.jpeg" in
+      let picture_file = Filename.concat cwd "pictures/camel1.jpeg" in
       add_name "<span size='30000'> Keti Sulamanidze </span>" picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
@@ -1635,7 +1609,7 @@ let initialize_gui () =
       in
       divider#misc#set_size_request ~height:4 ();
 
-      let picture_file = Filename.concat cwd "data/pictures/camel2.jpeg" in
+      let picture_file = Filename.concat cwd "pictures/camel2.jpeg" in
       add_name "<span size='30000'> Neha Naveen </span>" picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
@@ -1644,7 +1618,7 @@ let initialize_gui () =
       in
       divider#misc#set_size_request ~height:4 ();
 
-      let picture_file = Filename.concat cwd "data/pictures/camel3.jpeg" in
+      let picture_file = Filename.concat cwd "pictures/camel3.jpeg" in
       add_name "<span size='30000'> Ruby Penafiel-Gutierrez </span>"
         picture_file;
       let divider =
@@ -1654,7 +1628,7 @@ let initialize_gui () =
       in
       divider#misc#set_size_request ~height:4 ();
 
-      let picture_file = Filename.concat cwd "data/pictures/camel4.jpeg" in
+      let picture_file = Filename.concat cwd "pictures/camel4.jpeg" in
       add_name "<span size='30000'> Samantha Vaca </span>" picture_file;
       let divider =
         GMisc.separator `HORIZONTAL
@@ -1663,7 +1637,7 @@ let initialize_gui () =
       in
       divider#misc#set_size_request ~height:4 ();
 
-      let picture_file = Filename.concat cwd "data/pictures/camel5.jpeg" in
+      let picture_file = Filename.concat cwd "pictures/camel5.jpeg" in
       add_name "<span size='30000'> Varvara Babii </span>" picture_file;
 
       (* Create a small box for the quit button with minimal padding *)
@@ -1689,7 +1663,8 @@ let initialize_gui () =
       window#misc#show_all ();
       ignore
         (final_quit_button#connect#clicked ~callback:(fun () ->
-             window#destroy ()))
+             window#destroy ()));
+      Printf.printf "Visualization Complete. Thanks for your time! \n%!"
     in
     window#misc#show_all ();
     ignore (start_over_button#connect#clicked ~callback:start_over);
@@ -1787,7 +1762,7 @@ let get_dimension_from_csv csv =
 (** [print_points file d] prints the points of dimension [d] in [file]. *)
 let print_points file d =
   try
-    let p_list = List.map to_string (CsvReaderImpl.read_points d file) in
+    let p_list = List.map to_string (read_points d file) in
     List.iter (fun x -> Printf.printf "%s\n" x) p_list
   with _ -> failwith "Bad Points CSV"
 
@@ -1845,7 +1820,7 @@ let prompt_for_distfn () =
     calculated under [dist_metric] between the points [p] in csv and a dummy
     point. *)
 let distances p dim dist_metric =
-  let p_list = CsvReaderImpl.read_points dim p in
+  let p_list = read_points dim p in
   let dp = dummy_pt dim in
   List.map
     (fun p ->
@@ -2124,7 +2099,7 @@ let prompt_to_classify clusters dim dist_fn =
     dataset in [csv] and handles user interaction with processing and saving the
     data. *)
 let run_kmeans_ui csv dim point_count =
-  let points = CsvReaderImpl.read_points dim csv in
+  let points = read_points dim csv in
   let dist_fn =
     let err_msg = clr_ Reg Red "Invalid metric." in
     match prompt_for_distfn () with
