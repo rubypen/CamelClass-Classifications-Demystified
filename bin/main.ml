@@ -676,8 +676,7 @@ let initialize_gui () =
         ~markup:
           (Printf.sprintf
              "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-              <span size='15000'>Choose up to %d colors</span>"
-             !current_k)
+              <span size='15000'>Choose up to %d colors</span>" !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
@@ -854,12 +853,17 @@ let initialize_gui () =
     in
     (* Define buffer *)
     let buffer = text_view#buffer in
+    (* Auto-scroll function *)
     let auto_scroll () =
-      let end_iter = buffer#end_iter in
-      ignore
-        (text_view#scroll_to_iter end_iter ~within_margin:0.0 ~use_align:true
-           ~xalign:0.0 ~yalign:0.0);
-      buffer#place_cursor ~where:end_iter
+      let scroll_to_bottom () =
+        let end_iter = buffer#end_iter in
+        ignore
+          (text_view#scroll_to_iter end_iter ~within_margin:0.1 ~use_align:true
+             ~xalign:0.0 ~yalign:1.0);
+        buffer#place_cursor ~where:end_iter;
+        false (* Returning false removes the idle callback after execution *)
+      in
+      ignore (GMain.Idle.add scroll_to_bottom)
     in
     (* Update current_k when k_spin value changes *)
     ignore
@@ -870,8 +874,7 @@ let initialize_gui () =
            let markup_text =
              Printf.sprintf
                "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-                <span size='15000'>Choose up to %d colors</span>"
-               !current_k
+                <span size='15000'>Choose up to %d colors</span>" !current_k
            in
            cluster_colors_label#set_label markup_text));
     let current_metric = ref "Euclidean" in
@@ -1293,8 +1296,8 @@ let initialize_gui () =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>"
-        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
+        ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
