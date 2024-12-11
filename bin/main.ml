@@ -2,7 +2,6 @@ open GroupProject.Point
 open GroupProject.Csvreader
 open GroupProject.Kmeans
 open GroupProject.Knn
-open GroupProject.Extensions
 open GMain
 open Gtk
 
@@ -677,8 +676,7 @@ let initialize_gui () =
         ~markup:
           (Printf.sprintf
              "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-              <span size='15000'>Choose up to %d colors</span>"
-             !current_k)
+              <span size='15000'>Choose up to %d colors</span>" !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
@@ -871,8 +869,7 @@ let initialize_gui () =
            let markup_text =
              Printf.sprintf
                "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-                <span size='15000'>Choose up to %d colors</span>"
-               !current_k
+                <span size='15000'>Choose up to %d colors</span>" !current_k
            in
            cluster_colors_label#set_label markup_text));
     let current_metric = ref "Euclidean" in
@@ -1294,8 +1291,8 @@ let initialize_gui () =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>"
-        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
+        ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
@@ -1688,6 +1685,57 @@ let default_files = Hashtbl.create 10;;
 Hashtbl.add default_files "./data/test_data.csv" 1;;
 Hashtbl.add default_files "./data/test_data_2d.csv" 2;;
 Hashtbl.add default_files "./data/test_data_3d.csv" 3
+
+(** MARK: - Properties (Formatting and Display) *)
+
+(** The type representing a color. *)
+type color =
+  | Red
+  | Grn
+  | Ylw
+  | Blue
+  | Magenta
+  | Cyan
+  | Wht
+
+(** The type representing text styling options. *)
+type style =
+  | Bold
+  | Und
+  | Reg
+
+(** [clr_ s c str] is the string [str] with style [s] and color [clr]. *)
+let clr_ s c str =
+  let clr =
+    match c with
+    | Red -> ANSITerminal.red
+    | Grn -> ANSITerminal.green
+    | Ylw -> ANSITerminal.yellow
+    | Blue -> ANSITerminal.blue
+    | Magenta -> ANSITerminal.magenta
+    | Cyan -> ANSITerminal.cyan
+    | _ -> ANSITerminal.white
+  in
+  match s with
+  | Bold -> ANSITerminal.sprintf [ Bold; clr; ANSITerminal.on_black ] str
+  | Und -> ANSITerminal.sprintf [ Underlined; clr; ANSITerminal.on_black ] str
+  | Reg -> ANSITerminal.sprintf [ clr; ANSITerminal.on_black ] str
+
+(** Properties - Welcome Message *)
+
+(** [welcome_ascii] is the programs ASCII art banner. *)
+let welcome_ascii =
+  clr_ Bold Grn
+    "\n\
+    \ __        _______ _     ____ ___  __  __ _____   _        \n\
+    \ \\ \\      / / ____| |   / ___/ _ \\|  \\/  | ____| | |_ ___  \n\
+    \  \\ \\ /\\ / /|  _| | |  | |  | | | | |\\/| |  _|   | __/ _ \\ \n\
+    \   \\ V  V / | |___| |__| |__| |_| | |  | | |___  | || (_) |\n\
+    \   _\\_/\\_/  |_____|_____\\____\\___/|_|  |_|_____|  \\__\\___/ \n\
+    \  / ___|__ _ _ __ ___   ___| |/ ___| | __ _ ___ ___  | |   \n\
+    \ | |   / _` | '_ ` _ \\ / _ \\ | |   | |/ _` / __/ __| | |   \n\
+    \ | |__| (_| | | | | | |  __/ | |___| | (_| \\__ \\__ \\ |_|   \n\
+    \  \\____\\__,_|_| |_| |_|\\___|_|\\____|_|\\__,_|___/___/ (_)   \n"
 
 (* MARK: - Properties (Utilities) *)
 
