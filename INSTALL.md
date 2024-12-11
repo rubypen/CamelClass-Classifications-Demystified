@@ -10,10 +10,15 @@ Step 2)
 Install New Packages:
   $ opam update
   $ opam upgrade
-  $ opam install csv ansiterminal lablgtk3 plplot batteries
+  $ opam install csv ansiterminal batteries
+  $ opam install lablgtk3 
+  $ opam install plplot
+-> For these installations, it will ask you to choose y/n. Choose y.
+-> Also, it will ask you to download using options 1/2/3/4. Choose 1 (install with homebrew) 
+if you have mac homebrew.
 
 Step 3)
-1. Update Path:
+1. If you encounter path errors, Update Path:
   $ export PKG_CONFIG_PATH=/opt/homebrew/Cellar/pango/1.55.0/lib/pkgconfig:/opt/homebrew/lib/pkgconfig
   export LIBRARY_PATH=/opt/homebrew/Cellar/pango/1.55.0/lib:/opt/homebrew/lib
   export DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/pango/1.55.0/lib:/opt/homebrew/lib

@@ -3,7 +3,6 @@ open GroupProject.Csvreader
 open GroupProject.Kmeans
 open GroupProject.Knn
 open GroupProject.Extensions
-open GroupProject.Visualizations
 open GMain
 open Gtk
 
@@ -42,6 +41,337 @@ let find_widget_by_name parent name widget_type =
   match find_in_container parent with
   | Some w -> Some (widget_type w)
   | None -> None
+
+(* -------------------------------------------------------------------------- *)
+(* VISUALIZATIONS *)
+(* -------------------------------------------------------------------------- *)
+
+type color_array = (string * (float * float * float)) array
+
+let create_1d_graph filename points clusters colors =
+  let max_x = ref (-.max_float) in
+  let min_x = ref max_float in
+
+  (* Convert 1D points list to Array *)
+  let x = Array.make (List.length points) 0.0 in
+
+  (* Create array from existing points and find bounds *)
+  for i = 0 to List.length points - 1 do
+    let coords = GroupProject.Point.get_coordinates (List.nth points i) in
+    let curr_x = List.nth coords 0 in
+    x.(i) <- curr_x;
+    min_x := min !min_x curr_x;
+    max_x := max !max_x curr_x
+  done;
+
+  let x_clusters = Array.make (List.length clusters) 0.0 in
+  for i = 0 to List.length clusters - 1 do
+    let coords = GroupProject.Point.get_coordinates (List.nth clusters i) in
+    x_clusters.(i) <- List.nth coords 0
+  done;
+
+  let open Plplot in
+  plsdev "png";
+  plsfnam filename;
+  plinit ();
+
+  (* Assign the custom colors to the plot *)
+  Array.iteri
+    (fun i (_, (r, g, b)) ->
+      plscol0 (i + 1)
+        (int_of_float (r *. 255.))
+        (int_of_float (g *. 255.))
+        (int_of_float (b *. 255.)))
+    colors;
+
+  (* Define a new color, white, after the custom colors *)
+  plscol0 (Array.length colors + 1) 255 255 255;
+
+  (* Make axis color white *)
+  plcol0 (Array.length colors + 1);
+
+  let range = !max_x -. !min_x in
+  plenv (!min_x -. (0.1 *. range)) (!max_x +. (0.1 *. range)) (-0.1) 0.1 0 0;
+  pllab "X-axis" "" "1D Graph";
+
+  (* Plot points for each cluster *)
+  List.iteri
+    (fun i cluster_point ->
+      let color_index = (i mod Array.length colors) + 1 in
+      plcol0 color_index;
+
+      (* Filter points belonging to the current cluster *)
+      let cluster_points =
+        List.filter
+          (fun p ->
+            let curr_dist =
+              GroupProject.Point.euclidean_distance p cluster_point
+            in
+            List.for_all
+              (fun other_cluster ->
+                curr_dist
+                <= GroupProject.Point.euclidean_distance p other_cluster)
+              clusters)
+          points
+      in
+
+      let x_cluster_points =
+        Array.of_list
+          (List.map
+             (fun p -> List.nth (GroupProject.Point.get_coordinates p) 0)
+             cluster_points)
+      in
+
+      (* Plot cluster points *)
+      let y_fixed = Array.make (Array.length x_cluster_points) 0.0 in
+      plpoin x_cluster_points y_fixed 9;
+
+      (* Plot cluster centers *)
+      let center_coords = GroupProject.Point.get_coordinates cluster_point in
+      let cx = List.nth center_coords 0 in
+      plcol0 (Array.length colors + 1);
+      plpoin [| cx |] [| 0.0 |] 5)
+    clusters;
+
+  plend ()
+
+let create_2d_graph filename points clusters colors =
+  let max_x = ref (-.max_float) in
+  let min_x = ref max_float in
+  let max_y = ref (-.max_float) in
+  let min_y = ref max_float in
+
+  let x = Array.make (List.length points) 0.0 in
+  let y = Array.make (List.length points) 0.0 in
+
+  for i = 0 to List.length points - 1 do
+    let coords = GroupProject.Point.get_coordinates (List.nth points i) in
+    let curr_x = List.nth coords 0 in
+    let curr_y = List.nth coords 1 in
+    x.(i) <- curr_x;
+    y.(i) <- curr_y;
+    min_x := min !min_x curr_x;
+    max_x := max !max_x curr_x;
+    min_y := min !min_y curr_y;
+    max_y := max !max_y curr_y
+  done;
+
+  let open Plplot in
+  plsdev "png";
+  plsfnam filename;
+  plinit ();
+
+  (* Assign the custom colors to the plot *)
+  Array.iteri
+    (fun i (_, (r, g, b)) ->
+      plscol0 (i + 1)
+        (int_of_float (r *. 255.))
+        (int_of_float (g *. 255.))
+        (int_of_float (b *. 255.)))
+    colors;
+
+  (* Define a new color, white, after the custom colors *)
+  plscol0 (Array.length colors + 1) 255 255 255;
+
+  (* Make axis color white *)
+  plcol0 (Array.length colors + 1);
+
+  let x_range = !max_x -. !min_x in
+  let y_range = !max_y -. !min_y in
+
+  plenv
+    (!min_x -. (0.1 *. x_range))
+    (!max_x +. (0.1 *. x_range))
+    (!min_y -. (0.1 *. y_range))
+    (!max_y +. (0.1 *. y_range))
+    0 0;
+  pllab "X-axis" "Y-axis" "2D Graph";
+
+  (* Plot points for each cluster *)
+  List.iteri
+    (fun i cluster_point ->
+      let color_index = (i mod Array.length colors) + 1 in
+      plcol0 color_index;
+
+      let cluster_points =
+        List.filter
+          (fun p ->
+            let curr_dist =
+              GroupProject.Point.euclidean_distance p cluster_point
+            in
+            List.for_all
+              (fun other_cluster ->
+                curr_dist
+                <= GroupProject.Point.euclidean_distance p other_cluster)
+              clusters)
+          points
+      in
+
+      let x_cluster_points =
+        Array.of_list
+          (List.map
+             (fun p -> List.nth (GroupProject.Point.get_coordinates p) 0)
+             cluster_points)
+      in
+      let y_cluster_points =
+        Array.of_list
+          (List.map
+             (fun p -> List.nth (GroupProject.Point.get_coordinates p) 1)
+             cluster_points)
+      in
+
+      plpoin x_cluster_points y_cluster_points 9;
+
+      (* Plot cluster centers *)
+      let center_coords = GroupProject.Point.get_coordinates cluster_point in
+      let cx = List.nth center_coords 0 in
+      let cy = List.nth center_coords 1 in
+      plcol0 (Array.length colors + 1);
+      plpoin [| cx |] [| cy |] 5)
+    clusters;
+
+  plend ()
+
+let create_3d_graph filename points clusters colors =
+  let max_x = ref (-.max_float) and min_x = ref max_float in
+  let max_y = ref (-.max_float) and min_y = ref max_float in
+  let max_z = ref (-.max_float) and min_z = ref max_float in
+
+  (* Prepare points arrays *)
+  let x = Array.make (List.length points) 0.0 in
+  let y = Array.make (List.length points) 0.0 in
+  let z = Array.make (List.length points) 0.0 in
+
+  (* Fill points and update bounds *)
+  List.iteri
+    (fun i p ->
+      let coords = GroupProject.Point.get_coordinates p in
+      let curr_x, curr_y, curr_z =
+        (List.nth coords 0, List.nth coords 1, List.nth coords 2)
+      in
+      x.(i) <- curr_x;
+      y.(i) <- curr_y;
+      z.(i) <- curr_z;
+      min_x := min !min_x curr_x;
+      max_x := max !max_x curr_x;
+      min_y := min !min_y curr_y;
+      max_y := max !max_y curr_y;
+      min_z := min !min_z curr_z;
+      max_z := max !max_z curr_z)
+    points;
+
+  let open Plplot in
+  plsdev "png";
+  plsfnam filename;
+  plinit ();
+
+  (* Assign custom colors to the plot *)
+  Array.iteri
+    (fun i (_, (r, g, b)) ->
+      plscol0 (i + 1)
+        (int_of_float (r *. 255.))
+        (int_of_float (g *. 255.))
+        (int_of_float (b *. 255.)))
+    colors;
+
+  let x_range = !max_x -. !min_x in
+  let y_range = !max_y -. !min_y in
+  let z_range = !max_z -. !min_z in
+  (*let max_range = max x_range (max y_range z_range) in*)
+  let scale_factor = 5.0 in
+
+  (* Define a new color, black, for the 2D axes *)
+  plscol0 (Array.length colors + 1) 0 0 0;
+  (* Define a new color, white, for the 3D axes and clusters *)
+  plscol0 (Array.length colors + 2) 255 255 255;
+
+  plcol0 (Array.length colors + 1);
+
+  (* 3D Plot setup *)
+  plenv
+    (-0.15 *. x_range *. scale_factor)
+    (0.15 *. x_range *. scale_factor)
+    (-0.15 *. y_range *. scale_factor)
+    (0.15 *. y_range *. scale_factor)
+    0 0;
+
+  plw3d (1.0 *. scale_factor) (1.0 *. scale_factor) (1.0 *. scale_factor)
+    (!min_x -. (0.15 *. x_range))
+    (!max_x +. (0.15 *. x_range))
+    (!min_y -. (0.15 *. y_range))
+    (!max_y +. (0.15 *. y_range))
+    (!min_z -. (0.15 *. z_range))
+    (!max_z +. (0.15 *. z_range))
+    30.0 30.0;
+
+  plcol0 (Array.length colors + 2);
+  plbox3 "bnstu" "X-axis" 0.0 0 "bnstu" "Y-axis" 0.0 0 "bcdmnstuv" "Z-axis" 0.0
+    0;
+
+  (* Plot points *)
+  plpoin3 x y z 9;
+
+  (* Plot clusters dynamically *)
+  List.iteri
+    (fun i cluster ->
+      let color_index = (i mod Array.length colors) + 1 in
+      plcol0 color_index;
+
+      let cluster_points =
+        List.filter
+          (fun p ->
+            let curr_dist = GroupProject.Point.euclidean_distance p cluster in
+            List.for_all
+              (fun other_cluster ->
+                curr_dist
+                <= GroupProject.Point.euclidean_distance p other_cluster)
+              clusters)
+          points
+      in
+
+      let x_cluster_points =
+        Array.of_list
+          (List.map
+             (fun p -> List.nth (GroupProject.Point.get_coordinates p) 0)
+             cluster_points)
+      in
+      let y_cluster_points =
+        Array.of_list
+          (List.map
+             (fun p -> List.nth (GroupProject.Point.get_coordinates p) 1)
+             cluster_points)
+      in
+      let z_cluster_points =
+        Array.of_list
+          (List.map
+             (fun p -> List.nth (GroupProject.Point.get_coordinates p) 2)
+             cluster_points)
+      in
+
+      (* Plot cluster points *)
+      plpoin3 x_cluster_points y_cluster_points z_cluster_points 9;
+
+      (* Plot cluster centers *)
+      let center_coords = GroupProject.Point.get_coordinates cluster in
+      let cx = List.nth center_coords 0 in
+      let cy = List.nth center_coords 1 in
+      let cz = List.nth center_coords 2 in
+      plcol0 (Array.length colors + 2);
+      plpoin3 [| cx |] [| cy |] [| cz |] 5)
+    clusters;
+
+  plend ()
+
+let plot_graph view points clusters colors () =
+  let filename = "graph.png" in
+  match view with
+  | "1D" -> create_1d_graph filename points clusters colors
+  | "2D" -> create_2d_graph filename points clusters colors
+  | "3D" -> create_3d_graph filename points clusters colors
+  | _ -> failwith "Unsupported visualization type"
+
+let create_plot_window window graph_box image_path =
+  GMisc.image ~file:image_path ~packing:graph_box#add ()
 
 (* -------------------------------------------------------------------------- *)
 (* GUI FUNCTIONALITY *)
@@ -714,18 +1044,15 @@ let initialize_gui () =
     in
 
     let create_2d_graph filename (points : t list) clusters colors =
-      GroupProject.Visualizations.create_2d_graph filename points clusters
-        colors
+      create_2d_graph filename points clusters colors
     in
 
     let create_1d_graph filename (points : t list) clusters colors =
-      GroupProject.Visualizations.create_1d_graph filename points clusters
-        colors
+      create_1d_graph filename points clusters colors
     in
 
     let create_3d_graph filename (points : t list) clusters colors =
-      GroupProject.Visualizations.create_3d_graph filename points clusters
-        colors
+      create_3d_graph filename points clusters colors
     in
 
     let plot_graph view points clusters colors () =
@@ -738,14 +1065,17 @@ let initialize_gui () =
     (* Run k-means handler *)
     let run_kmeans () =
       Printf.printf "Starting run_kmeans...\n%!";
+      (* Debug print *)
       match !current_points with
       | [] ->
           Printf.printf "No points loaded\n%!";
+          (* Debug print *)
           buffer#insert "\nNo points loaded. Please select a file first.\n";
           auto_scroll ()
       | points ->
           (try
              Printf.printf "Points loaded, running clustering...\n%!";
+             (* Debug print *)
              let dist_fn =
                if radio_euclidean#active then euclidean_distance
                else manhattan_distance
@@ -753,51 +1083,80 @@ let initialize_gui () =
              buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
              auto_scroll ();
              Printf.printf "Running k-means with k=%d...\n%!" !current_k;
-
+             (* Debug print *)
              let clusters = run_custom_kmeans !current_k points dist_fn in
              buffer#insert "Clustering completed.\n";
              auto_scroll ();
-             Printf.printf "Clustering completed.\n%!";
+             Printf.printf "Clustering completed, creating visualization...\n%!";
 
-             (* Activate Next button as soon as clustering succeeds *)
+             let select_random_colors chosen_colors defined_colors k =
+               let chosen_list = Array.to_list chosen_colors in
+
+               let remaining_colors =
+                 Array.to_list defined_colors
+                 |> List.filter (fun (name, _) ->
+                        not (List.mem_assoc name chosen_list))
+               in
+
+               let rec pick_random_elements acc colors n =
+                 if n <= 0 || colors = [] then acc
+                 else
+                   let idx = Random.int (List.length colors) in
+                   let chosen_color = List.nth colors idx in
+                   let new_colors =
+                     List.filter (fun x -> x <> chosen_color) colors
+                   in
+                   pick_random_elements (chosen_color :: acc) new_colors (n - 1)
+               in
+
+               (* Randomly select the amount of colors needed to meet k and add
+                  to the list of already chosen colors *)
+               let needed_count = max 0 (k - Array.length chosen_colors) in
+               let additional_colors =
+                 pick_random_elements [] remaining_colors needed_count
+               in
+               Array.append chosen_colors (Array.of_list additional_colors)
+             in
+
+             let colors_to_use =
+               if Array.length !chosen_colors < !current_k then
+                 select_random_colors !chosen_colors colors !current_k
+               else !chosen_colors
+             in
+
+             (* Debug print *)
+             if !current_dim == 1 then begin
+               Printf.printf "Creating 1D visualization...\n%!";
+               let _ = plot_graph "1D" points clusters colors_to_use () in
+               buffer#insert "Visualization saved to 'graph.png'\n";
+               auto_scroll ();
+               graph_image#set_file "graph.png"
+             end
+             else if !current_dim == 2 then begin
+               Printf.printf "Creating 2D visualization...\n%!";
+               (* Debug print *)
+               let _ = plot_graph "2D" points clusters colors_to_use () in
+               buffer#insert "Visualization saved to 'graph.png'\n";
+               auto_scroll ();
+               graph_image#set_file "graph.png"
+             end
+             else if !current_dim == 3 then begin
+               Printf.printf "Creating 3D visualization...\n%!";
+               (* Debug print *)
+               let _ = plot_graph "3D" points clusters colors_to_use () in
+               buffer#insert "Visualization saved to 'graph.png'\n";
+               auto_scroll ();
+               graph_image#set_file "graph.png"
+             end
+             else
+               buffer#insert
+                 "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
+             auto_scroll ();
+
+             Printf.printf "Visualization completed\n%!";
+             (* Make Next button sensitive *)
              next_button#misc#set_sensitive true;
-
-             (* Try to create visualization if dimension allows *)
-             (try
-                if !current_dim == 1 then begin
-                  Printf.printf "Creating 1D visualization...\n%!";
-                  plot_graph "1D" points clusters !chosen_colors ();
-                  buffer#insert "Visualization saved to 'graph.png'\n";
-                  auto_scroll ();
-                  graph_image#set_file "graph.png"
-                end
-                else if !current_dim == 2 then begin
-                  Printf.printf "Creating 2D visualization...\n%!";
-                  plot_graph "2D" points clusters !chosen_colors ();
-                  buffer#insert "Visualization saved to 'graph.png'\n";
-                  auto_scroll ();
-                  graph_image#set_file "graph.png"
-                end
-                else if !current_dim == 3 then begin
-                  Printf.printf "Creating 3D visualization...\n%!";
-                  plot_graph "3D" points clusters !chosen_colors ();
-                  buffer#insert "Visualization saved to 'graph.png'\n";
-                  auto_scroll ();
-                  graph_image#set_file "graph.png"
-                end
-                else begin
-                  buffer#insert
-                    "Points have dimension > 3. Visualization not available.\n";
-                  auto_scroll ()
-                end
-              with viz_error ->
-                buffer#insert
-                  ("Note: Could not create visualization: "
-                  ^ Printexc.to_string viz_error
-                  ^ "\n");
-                auto_scroll ());
-
-             (* Display cluster information *)
+             (* Debug print *)
              List.iteri
                (fun i cluster ->
                  buffer#insert
@@ -810,10 +1169,9 @@ let initialize_gui () =
                clusters
            with e ->
              Printf.printf "Error occurred: %s\n%!" (Printexc.to_string e);
+             (* Debug print *)
              buffer#insert
-               ("\nError during clustering: " ^ Printexc.to_string e ^ "\n");
-             (* Ensure Next button stays disabled if clustering failed *)
-             next_button#misc#set_sensitive false);
+               ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"));
           auto_scroll ()
     in
 
@@ -836,9 +1194,7 @@ let initialize_gui () =
 
     (* Initialize state *)
     (* run_button#misc#set_sensitive false; *)
-    buffer#set_text
-      "Welcome to CamelClass K-means Clustering\n\
-       Please select a data file to begin.\n";
+    buffer#set_text "Welcome to CamelClass K-means Clustering\n\n";
     auto_scroll ();
     ignore
       (next_button#connect#clicked ~callback:(fun () ->
@@ -999,7 +1355,7 @@ let initialize_gui () =
     clean window;
     let controls_box =
       GPack.vbox ~width:60 ~height:400 ~packing:window#add ~spacing:20
-        ~border_width:400 ()
+        ~border_width:300 ()
     in
 
     (* Setting the font *)
