@@ -48,7 +48,7 @@ let find_widget_by_name parent name widget_type =
 
 type color_array = (string * (float * float * float)) array
 
-let create_1d_graph filename points clusters colors =
+let create_1d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) in
   let min_x = ref max_float in
 
@@ -104,13 +104,10 @@ let create_1d_graph filename points clusters colors =
       let cluster_points =
         List.filter
           (fun p ->
-            let curr_dist =
-              GroupProject.Point.euclidean_distance p cluster_point
-            in
+            let curr_dist = distance_metric p cluster_point in
             List.for_all
               (fun other_cluster ->
-                curr_dist
-                <= GroupProject.Point.euclidean_distance p other_cluster)
+                curr_dist <= distance_metric p other_cluster)
               clusters)
           points
       in
@@ -135,7 +132,7 @@ let create_1d_graph filename points clusters colors =
 
   plend ()
 
-let create_2d_graph filename points clusters colors =
+let create_2d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) in
   let min_x = ref max_float in
   let max_y = ref (-.max_float) in
@@ -196,13 +193,10 @@ let create_2d_graph filename points clusters colors =
       let cluster_points =
         List.filter
           (fun p ->
-            let curr_dist =
-              GroupProject.Point.euclidean_distance p cluster_point
-            in
+            let curr_dist = distance_metric p cluster_point in
             List.for_all
               (fun other_cluster ->
-                curr_dist
-                <= GroupProject.Point.euclidean_distance p other_cluster)
+                curr_dist <= distance_metric p other_cluster)
               clusters)
           points
       in
@@ -232,7 +226,7 @@ let create_2d_graph filename points clusters colors =
 
   plend ()
 
-let create_3d_graph filename points clusters colors =
+let create_3d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) and min_x = ref max_float in
   let max_y = ref (-.max_float) and min_y = ref max_float in
   let max_z = ref (-.max_float) and min_z = ref max_float in
@@ -320,11 +314,10 @@ let create_3d_graph filename points clusters colors =
       let cluster_points =
         List.filter
           (fun p ->
-            let curr_dist = GroupProject.Point.euclidean_distance p cluster in
+            let curr_dist = distance_metric p cluster in
             List.for_all
               (fun other_cluster ->
-                curr_dist
-                <= GroupProject.Point.euclidean_distance p other_cluster)
+                curr_dist <= distance_metric p other_cluster)
               clusters)
           points
       in
@@ -362,12 +355,12 @@ let create_3d_graph filename points clusters colors =
 
   plend ()
 
-let plot_graph view points clusters colors () =
+let plot_graph view points clusters colors distance_metric () =
   let filename = "pictures/graph.png" in
   match view with
-  | "1D" -> create_1d_graph filename points clusters colors
-  | "2D" -> create_2d_graph filename points clusters colors
-  | "3D" -> create_3d_graph filename points clusters colors
+  | "1D" -> create_1d_graph filename points clusters colors distance_metric
+  | "2D" -> create_2d_graph filename points clusters colors distance_metric
+  | "3D" -> create_3d_graph filename points clusters colors distance_metric
   | _ -> failwith "Unsupported visualization type"
 
 let create_plot_window window graph_box image_path =
@@ -381,56 +374,54 @@ let initialize_gui () =
   let init = GMain.init () in
   ignore init;
 
-  (* Create the window *)
   let window = GWindow.window ~title:"CamelClass" ~show:true () in
   window#maximize ();
 
-  (* Create choice reference *)
   let choice = ref "" in
   let chosen_colors = ref [||] in
+  let current_metric_path = ref GroupProject.Point.euclidean_distance in
 
-  (* Create main vertical box for layout *)
-  let vbox = GPack.vbox ~packing:window#add () in
+  let fixed = GPack.fixed ~packing:window#add () in
 
-  (* Add title labels *)
-  let _project_title =
+  let cwd = Sys.getcwd () in
+  let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
+  let screen_width = Gdk.Screen.width () in
+  let screen_height = Gdk.Screen.height () in
+  let pixbuf =
+    GdkPixbuf.from_file_at_size bg_file ~width:screen_width
+      ~height:screen_height
+  in
+  let _background = GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) () in
+
+  let text_width, text_height = (600, 200) in
+  let button_width, button_height = (200, 80) in
+  let center_x = (screen_width - text_width) / 2 in
+  let center_y = (screen_height - text_height - button_height) / 2 in
+
+  let project_title =
     GMisc.label ~markup:"<span size='100000'><b>CamelClass</b></span>"
-      ~selectable:true ~yalign:0.0
-      ~packing:(vbox#pack ~expand:true ~fill:true)
-      ()
+      ~selectable:false ~yalign:0.0 ()
   in
-  let _project_subtitle =
+  fixed#put
+    ~x:(int_of_float (float_of_int center_x +. (0.1 *. float_of_int center_x)))
+    ~y:(center_y - 50) project_title#coerce;
+
+  let project_subtitle =
     GMisc.label ~markup:"<span size='35000'>K-means Clustering</span>"
-      ~selectable:true ~yalign:0.0
-      ~packing:(vbox#pack ~expand:true ~fill:true)
-      ()
+      ~selectable:false ~yalign:0.0 ()
   in
+  fixed#put
+    ~x:(int_of_float (float_of_int center_x +. (0.35 *. float_of_int center_x)))
+    ~y:(center_y + 50) project_subtitle#coerce;
 
-  (* Create drawing area *)
-  (* let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in
-     drawing_area#misc#set_size_request ~width:600 ~height:400 (); *)
-
-  (* Create controls area *)
-  let controls_box = GPack.hbox ~spacing:5 ~packing:vbox#pack () in
-
-  (* Start button *)
-  let start_button =
-    GButton.button ~label:"Start"
-      ~packing:(controls_box#pack ~expand:true ~fill:false)
-      ()
-  in
+  let start_button = GButton.button ~label:"Start" () in
+  start_button#misc#set_size_request ~width:button_width ~height:button_height
+    ();
   let font = GPango.font_description_from_string "Arial 20" in
   start_button#misc#modify_font font;
-  start_button#misc#set_size_request ~height:80 ~width:200 ();
-
-  (* Picture *)
-  let cwd = Sys.getcwd () in
-  let font_file = Filename.concat cwd "pictures/background.jpeg" in
-  let pixbuf = GdkPixbuf.from_file_at_size font_file ~width:1000 ~height:600 in
-
-  let _font_picture =
-    GMisc.image ~pixbuf ~packing:(vbox#pack ~expand:true ~fill:true) ()
-  in
+  fixed#put
+    ~x:((screen_width - button_width) / 2)
+    ~y:(center_y + text_height) start_button#coerce;
 
   (* Cleaning the existing window*)
   let clean (window : GWindow.window) =
@@ -442,39 +433,88 @@ let initialize_gui () =
   let rec start () =
     (* Clean existing window *)
     clean window;
+    (* Get the screen dimensions *)
+    let screen_width = Gdk.Screen.width () in
+    let screen_height = Gdk.Screen.height () in
+
+    (* Estimate/measure the total area you'd like to center *)
+    let main_box_width = 600 in
+    let main_box_height = 600 in
+
+    (* Compute the center coordinates *)
+    let center_x = (screen_width - main_box_width) / 2 in
+    let center_y = (screen_height - main_box_height) / 2 in
+
+    (* Create the fixed container *)
+    let fixed = GPack.fixed ~packing:window#add () in
+
+    (* Load your background image as before *)
+    let cwd = Sys.getcwd () in
+    let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
+    let pixbuf =
+      GdkPixbuf.from_file_at_size bg_file ~width:screen_width
+        ~height:screen_height
+    in
+    ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
+
+    (* Now create your main VBox centered using the computed coordinates *)
+    let main_box =
+      GPack.vbox ~spacing:20 ~border_width:20
+        ~packing:(fixed#put ~x:center_x ~y:center_y)
+        ()
+    in
+
+    let intro_label =
+      GMisc.label
+        ~markup:
+          "<span size='50000' weight='bold'>Welcome to CamelClass!</span>\n\
+           <span size='40000'>  Please select an action below:</span>"
+        ~xalign:0.5 ~yalign:0.5
+        ~packing:(main_box#pack ~expand:false ~fill:false ~padding:10)
+        ()
+    in
+    intro_label#misc#show ();
+
+    (* Add Controls Box to Main VBox *)
     let controls_box =
-      GPack.vbox ~width:60 ~height:300 ~packing:window#add ~spacing:20
-        ~border_width:300 ()
+      GPack.vbox ~width:60 ~height:300
+        ~packing:(main_box#pack ~expand:true ~fill:true)
+        ~spacing:20 ~border_width:100 ()
     in
     controls_box#set_homogeneous false;
 
-    (* Setting the font *)
+    (* Setting the Font for Buttons *)
     let font = GPango.font_description_from_string "Arial 20" in
+
+    (* Add Buttons to Controls Box *)
     let choose_file_button =
-      GButton.button ~label:"Choose file"
+      GButton.button ~label:"Choose File 📁"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
-    choose_file_button#misc#set_size_request ~height:50 ~width:50 ();
+    choose_file_button#misc#set_size_request ~height:50 ~width:200 ();
     choose_file_button#misc#modify_font font;
 
     let sample_points_button =
-      GButton.button ~label:"Sample points"
+      GButton.button ~label:"Sample Points 📊"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
-    sample_points_button#misc#set_size_request ~height:50 ~width:50 ();
+    sample_points_button#misc#set_size_request ~height:50 ~width:200 ();
     sample_points_button#misc#modify_font font;
 
     let random_points_button =
-      GButton.button ~label:"Random points"
+      GButton.button ~label:"Random Points 🎲"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
-    random_points_button#misc#set_size_request ~height:50 ~width:50 ();
+    random_points_button#misc#set_size_request ~height:50 ~width:200 ();
     random_points_button#misc#modify_font font;
 
+    (* Show All Widgets *)
     window#misc#show_all ();
+
+    (* Button Callbacks *)
     ignore
       (choose_file_button#connect#clicked ~callback:(fun () ->
            choice := "file";
@@ -632,9 +672,13 @@ let initialize_gui () =
       GPack.vbox ~packing:controls_box#pack ~spacing:5 ()
     in
 
-    let _cluster_colors_label =
+    let cluster_colors_label =
       GMisc.label
-        ~markup:"<span size='15000' weight='bold'>Cluster Colors:</span>"
+        ~markup:
+          (Printf.sprintf
+             "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
+              <span size='15000'>Choose up to %d colors</span>"
+             !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
@@ -771,7 +815,7 @@ let initialize_gui () =
     let graph_image =
       GMisc.image ~file:"pictures/no_graph.png" ~packing:graph_box#add ()
     in
-    let next_button = GButton.button ~label:"Next" ~packing:vbox#pack () in
+    let next_button = GButton.button ~label:"Next ▶" ~packing:vbox#pack () in
 
     (* Disable the next button initially *)
     next_button#misc#set_sensitive false;
@@ -821,7 +865,16 @@ let initialize_gui () =
     (* Update current_k when k_spin value changes *)
     ignore
       (k_spin#connect#value_changed ~callback:(fun () ->
-           current_k := int_of_float k_spin#value));
+           current_k := int_of_float k_spin#value;
+
+           (* Update the cluster colors label *)
+           let markup_text =
+             Printf.sprintf
+               "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
+                <span size='15000'>Choose up to %d colors</span>"
+               !current_k
+           in
+           cluster_colors_label#set_label markup_text));
     let current_metric = ref "Euclidean" in
     (* Add Optimize K button *)
     let optimize_k_box = GPack.hbox ~packing:controls_box#pack ~spacing:10 () in
@@ -890,7 +943,12 @@ let initialize_gui () =
     (* Distance metric change handler *)
     let on_metric_changed () =
       current_metric :=
-        if radio_euclidean#active then "Euclidean" else "Manhattan";
+        if radio_euclidean#active then (
+          current_metric_path := GroupProject.Point.euclidean_distance;
+          "Euclidean")
+        else (
+          current_metric_path := GroupProject.Point.manhattan_distance;
+          "Manhattan");
       buffer#insert ("\nDistance metric changed to: " ^ !current_metric ^ "\n");
       auto_scroll ()
     in
@@ -1043,23 +1101,28 @@ let initialize_gui () =
       run_button#misc#set_sensitive true
     in
 
-    let create_2d_graph filename (points : t list) clusters colors =
-      create_2d_graph filename points clusters colors
+    let create_2d_graph filename (points : t list) clusters colors
+        distance_metric =
+      create_2d_graph filename points clusters colors distance_metric
     in
 
-    let create_1d_graph filename (points : t list) clusters colors =
-      create_1d_graph filename points clusters colors
+    let create_1d_graph filename (points : t list) clusters colors
+        distance_metric =
+      create_1d_graph filename points clusters colors distance_metric
     in
 
-    let create_3d_graph filename (points : t list) clusters colors =
-      create_3d_graph filename points clusters colors
+    let create_3d_graph filename (points : t list) clusters colors
+        distance_metric =
+      create_3d_graph filename points clusters colors distance_metric
     in
 
-    let plot_graph view points clusters colors () =
+    let plot_graph view points clusters colors distance_metric () =
       let filename = "pictures/graph.png" in
-      if view = "1D" then create_1d_graph filename points clusters colors
-      else if view = "2D" then create_2d_graph filename points clusters colors
-      else create_3d_graph filename points clusters colors
+      if view = "1D" then
+        create_1d_graph filename points clusters colors distance_metric
+      else if view = "2D" then
+        create_2d_graph filename points clusters colors distance_metric
+      else create_3d_graph filename points clusters colors distance_metric
     in
 
     (* Run k-means handler *)
@@ -1115,20 +1178,30 @@ let initialize_gui () =
                else !chosen_colors
              in
 
+             (* Debug print *)
              if !current_dim == 1 then begin
-               let _ = plot_graph "1D" points clusters colors_to_use () in
+               let _ =
+                 plot_graph "1D" points clusters colors_to_use
+                   !current_metric_path ()
+               in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
                graph_image#set_file "pictures/graph.png"
              end
              else if !current_dim == 2 then begin
-               let _ = plot_graph "2D" points clusters colors_to_use () in
+               let _ =
+                 plot_graph "2D" points clusters colors_to_use
+                   !current_metric_path ()
+               in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
                graph_image#set_file "pictures/graph.png"
              end
              else if !current_dim == 3 then begin
-               let _ = plot_graph "3D" points clusters colors_to_use () in
+               let _ =
+                 plot_graph "3D" points clusters colors_to_use
+                   !current_metric_path ()
+               in
                buffer#insert "Visualization saved to 'graph.png'\n";
                auto_scroll ();
                graph_image#set_file "pictures/graph.png"
@@ -1138,8 +1211,9 @@ let initialize_gui () =
                  "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
              auto_scroll ();
 
-             (* Make Next button sensitive *)
+             chosen_colors := [||];
              next_button#misc#set_sensitive true;
+
              List.iteri
                (fun i cluster ->
                  buffer#insert
@@ -1181,15 +1255,47 @@ let initialize_gui () =
       (next_button#connect#clicked ~callback:(fun () ->
            transition4 !current_k !current_points))
   and transition4 current_k current_points =
+    chosen_colors := [||];
     (* Transition 6: Show statistics *)
     clean window;
-    let stats_box = GPack.vbox ~packing:window#add () in
+
+    (* Get the screen dimensions *)
+    let screen_width = Gdk.Screen.width () in
+    let screen_height = Gdk.Screen.height () in
+
+    (* Estimate/measure the total area you'd like to center *)
+    let main_box_width = 800 in
+    let main_box_height = 850 in
+
+    (* Compute the center coordinates *)
+    let center_x = (screen_width - main_box_width) / 2 in
+    let center_y = (screen_height - main_box_height) / 2 in
+
+    (* Create a fixed container *)
+    let fixed = GPack.fixed ~packing:window#add () in
+
+    (* Load your background image *)
+    let cwd = Sys.getcwd () in
+    let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
+    let pixbuf =
+      GdkPixbuf.from_file_at_size bg_file ~width:screen_width
+        ~height:screen_height
+    in
+
+    (* Place the background image at (0,0) *)
+    ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
+
+    (* Create stats_box on top of the background *)
+    let stats_box =
+      GPack.vbox ~packing:(fixed#put ~x:center_x ~y:center_y) ()
+    in
+
     let _statistics_title =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
-        ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
@@ -1326,32 +1432,90 @@ let initialize_gui () =
         ())
       clusters;
 
-    let back_button = GButton.button ~label:"Back" ~packing:stats_box#pack () in
+    let button_box =
+      GPack.hbox ~spacing:20
+        ~packing:(stats_box#pack ~expand:true ~fill:true)
+        ()
+    in
+
+    let _left_spacer =
+      GMisc.label ~text:"" ~packing:(button_box#pack ~expand:true ~fill:true) ()
+    in
+
+    let back_button =
+      GButton.button ~label:"◀ Back"
+        ~packing:(button_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let next_button =
+      GButton.button ~label:"Next ▶"
+        ~packing:(button_box#pack ~expand:false ~fill:false)
+        ()
+    in
+
+    let _right_spacer =
+      GMisc.label ~text:"" ~packing:(button_box#pack ~expand:true ~fill:true) ()
+    in
+
+    let font = GPango.font_description_from_string "Arial 16" in
+    back_button#misc#modify_font font;
+    next_button#misc#modify_font font;
+    back_button#set_relief `NORMAL;
+    next_button#set_relief `NORMAL;
+    back_button#misc#set_size_request ~width:200 ~height:(-1) ();
+    next_button#misc#set_size_request ~width:200 ~height:(-1) ();
+
     ignore (back_button#connect#clicked ~callback:(fun () -> transition3 ()));
-    let next_button = GButton.button ~label:"Next" ~packing:stats_box#pack () in
     ignore (next_button#connect#clicked ~callback:(fun () -> transition6 ()));
+
     window#misc#show_all ()
   and transition6 () =
     (* Transition 8: End Screen *)
     clean window;
-    let controls_box =
-      GPack.vbox ~width:60 ~height:300 ~packing:window#add ~spacing:20
-        ~border_width:300 ()
-    in
 
-    (* Setting the font *)
-    let font = GPango.font_description_from_string "Arial 20" in
-    (* Start/Quit buttons *)
-    let start_over_button =
-      GButton.button ~label:"Start over" ~packing:controls_box#pack ()
+    let screen_width = Gdk.Screen.width () in
+    let screen_height = Gdk.Screen.height () in
+
+    let main_box_width = 500 in
+    let main_box_height = 500 in
+
+    let center_x = (screen_width - main_box_width) / 2 in
+    let center_y = (screen_height - main_box_height) / 2 in
+
+    let fixed = GPack.fixed ~packing:window#add () in
+
+    let cwd = Sys.getcwd () in
+    let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
+    let pixbuf =
+      GdkPixbuf.from_file_at_size bg_file ~width:screen_width
+        ~height:screen_height
     in
-    start_over_button#misc#set_size_request ~height:70 ~width:50 ();
+    ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
+
+    let controls_box =
+      GPack.vbox ~width:60 ~height:400
+        ~packing:(fixed#put ~x:center_x ~y:center_y)
+        ~spacing:20 ~border_width:100 ()
+    in
+    controls_box#set_homogeneous false;
+
+    let font = GPango.font_description_from_string "Arial 20" in
+
+    let start_over_button =
+      GButton.button ~label:"Start over 🔄"
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
+        ()
+    in
+    start_over_button#misc#set_size_request ~height:70 ~width:300 ();
     start_over_button#misc#modify_font font;
 
     let quit_button =
-      GButton.button ~label:"Quit" ~packing:controls_box#pack ()
+      GButton.button ~label:"Quit ❌"
+        ~packing:(controls_box#pack ~expand:true ~fill:true)
+        ()
     in
-    quit_button#misc#set_size_request ~height:70 ~width:50 ();
+    quit_button#misc#set_size_request ~height:70 ~width:300 ();
     quit_button#misc#modify_font font;
 
     let start_over () =
@@ -1362,34 +1526,67 @@ let initialize_gui () =
     let quit () =
       start ();
       clean window;
-      let controls_box =
-        GPack.vbox ~height:300 ~width:600 ~spacing:5 ~border_width:50
-          ~packing:window#add ()
+
+      (* Get the screen dimensions *)
+      let screen_width = Gdk.Screen.width () in
+      let screen_height = Gdk.Screen.height () in
+
+      (* Dimensions for main area *)
+      let main_box_width = 1450 in
+      let main_box_height = 800 in
+
+      (* Compute center coordinates to position the controls box *)
+      let center_x = (screen_width - main_box_width) / 2 in
+      let center_y = (screen_height - main_box_height) / 2 in
+
+      (* Create a fixed container so we can place a background image *)
+      let fixed = GPack.fixed ~packing:window#add () in
+
+      (* Load your background image *)
+      let cwd = Sys.getcwd () in
+      let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
+      let pixbuf =
+        GdkPixbuf.from_file_at_size bg_file ~width:screen_width
+          ~height:screen_height
       in
-      controls_box#set_homogeneous true;
+      ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
+
+      (* Remove explicit height/width from controls_box so it can shrink
+         naturally *)
+      let controls_box =
+        GPack.vbox ~spacing:5 ~border_width:20
+          ~packing:(fixed#put ~x:center_x ~y:center_y)
+          ()
+      in
+      controls_box#set_homogeneous false;
+
       let _thanks_title =
         GMisc.label
           ~markup:
             "<span size='80000'><b>Thank you for your attention! </b></span>"
           ~selectable:true ~xalign:0.5 ~yalign:0.5
-          ~packing:(controls_box#pack ~expand:true ~fill:true)
+          ~packing:(controls_box#pack ~expand:false ~fill:false)
           ()
       in
+
       let _authors_title =
         GMisc.label ~markup:"<span size='30000'><b>\n\nAuthors: </b></span>"
           ~selectable:true ~xalign:0.5 ~yalign:1.0
-          ~packing:(controls_box#pack ~expand:true ~fill:true)
+          ~packing:(controls_box#pack ~expand:false ~fill:false)
           ()
       in
+
+      (* No fixed height/width here, let the box size to its content *)
       let thanks_box =
-        GPack.hbox ~height:200 ~width:600 ~spacing:20 ~border_width:50
-          ~packing:controls_box#add ()
+        GPack.hbox ~spacing:20 ~border_width:50
+          ~packing:(controls_box#pack ~expand:false ~fill:false)
+          ()
       in
 
       let add_name name picture_file =
         let column =
           GPack.vbox ~spacing:5
-            ~packing:(thanks_box#pack ~expand:true ~fill:true)
+            ~packing:(thanks_box#pack ~expand:false ~fill:false)
             ()
         in
         ignore (GMisc.label ~markup:name ~xalign:0.5 ~packing:column#add ());
@@ -1398,7 +1595,7 @@ let initialize_gui () =
         in
         ignore
           (GMisc.image ~pixbuf
-             ~packing:(column#pack ~expand:true ~fill:true)
+             ~packing:(column#pack ~expand:false ~fill:false)
              ())
       in
 
@@ -1443,15 +1640,21 @@ let initialize_gui () =
       let picture_file = Filename.concat cwd "pictures/camel5.jpeg" in
       add_name "<span size='30000'> Varvara Babii </span>" picture_file;
 
+      (* Create a small box for the quit button with minimal padding *)
       let quit_box =
-        GPack.vbox ~height:10 ~width:10 ~spacing:5 ~border_width:150
-          ~packing:controls_box#add ()
+        GPack.vbox ~spacing:5 ~border_width:0
+          ~packing:(controls_box#pack ~expand:false ~fill:false)
+          ()
       in
-      controls_box#set_homogeneous false;
 
+      (* Set a nice font for the quit button *)
+      let font = GPango.font_description_from_string "Arial 20" in
+
+      (* Packing the quit button without expand will ensure no extra vertical
+         space *)
       let final_quit_button =
-        GButton.button ~label:"Quit"
-          ~packing:(quit_box#pack ~expand:true ~fill:false)
+        GButton.button ~label:"Quit ❌"
+          ~packing:(quit_box#pack ~expand:false ~fill:false)
           ()
       in
       final_quit_button#misc#set_size_request ~height:50 ~width:10 ();
