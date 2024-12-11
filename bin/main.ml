@@ -738,17 +738,14 @@ let initialize_gui () =
     (* Run k-means handler *)
     let run_kmeans () =
       Printf.printf "Starting run_kmeans...\n%!";
-      (* Debug print *)
       match !current_points with
       | [] ->
           Printf.printf "No points loaded\n%!";
-          (* Debug print *)
           buffer#insert "\nNo points loaded. Please select a file first.\n";
           auto_scroll ()
       | points ->
           (try
              Printf.printf "Points loaded, running clustering...\n%!";
-             (* Debug print *)
              let dist_fn =
                if radio_euclidean#active then euclidean_distance
                else manhattan_distance
@@ -756,80 +753,51 @@ let initialize_gui () =
              buffer#insert ("Using " ^ !current_metric ^ " distance metric.\n");
              auto_scroll ();
              Printf.printf "Running k-means with k=%d...\n%!" !current_k;
-             (* Debug print *)
+
              let clusters = run_custom_kmeans !current_k points dist_fn in
              buffer#insert "Clustering completed.\n";
              auto_scroll ();
-             Printf.printf "Clustering completed, creating visualization...\n%!";
+             Printf.printf "Clustering completed.\n%!";
 
-             let select_random_colors chosen_colors defined_colors k =
-               let chosen_list = Array.to_list chosen_colors in
-
-               let remaining_colors =
-                 Array.to_list defined_colors
-                 |> List.filter (fun (name, _) ->
-                        not (List.mem_assoc name chosen_list))
-               in
-
-               let rec pick_random_elements acc colors n =
-                 if n <= 0 || colors = [] then acc
-                 else
-                   let idx = Random.int (List.length colors) in
-                   let chosen_color = List.nth colors idx in
-                   let new_colors =
-                     List.filter (fun x -> x <> chosen_color) colors
-                   in
-                   pick_random_elements (chosen_color :: acc) new_colors (n - 1)
-               in
-
-               (* Randomly select the amount of colors needed to meet k and add
-                  to the list of already chosen colors *)
-               let needed_count = max 0 (k - Array.length chosen_colors) in
-               let additional_colors =
-                 pick_random_elements [] remaining_colors needed_count
-               in
-               Array.append chosen_colors (Array.of_list additional_colors)
-             in
-
-             let colors_to_use =
-               if Array.length !chosen_colors < !current_k then
-                 select_random_colors !chosen_colors colors !current_k
-               else !chosen_colors
-             in
-
-             (* Debug print *)
-             if !current_dim == 1 then begin
-               Printf.printf "Creating 1D visualization...\n%!";
-               let _ = plot_graph "1D" points clusters colors_to_use () in
-               buffer#insert "Visualization saved to 'graph.png'\n";
-               auto_scroll ();
-               graph_image#set_file "graph.png"
-             end
-             else if !current_dim == 2 then begin
-               Printf.printf "Creating 2D visualization...\n%!";
-               (* Debug print *)
-               let _ = plot_graph "2D" points clusters colors_to_use () in
-               buffer#insert "Visualization saved to 'graph.png'\n";
-               auto_scroll ();
-               graph_image#set_file "graph.png"
-             end
-             else if !current_dim == 3 then begin
-               Printf.printf "Creating 3D visualization...\n%!";
-               (* Debug print *)
-               let _ = plot_graph "3D" points clusters colors_to_use () in
-               buffer#insert "Visualization saved to 'graph.png'\n";
-               auto_scroll ();
-               graph_image#set_file "graph.png"
-             end
-             else
-               buffer#insert
-                 "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
-             auto_scroll ();
-
-             Printf.printf "Visualization completed\n%!";
-             (* Make Next button sensitive *)
+             (* Activate Next button as soon as clustering succeeds *)
              next_button#misc#set_sensitive true;
-             (* Debug print *)
+
+             (* Try to create visualization if dimension allows *)
+             (try
+                if !current_dim == 1 then begin
+                  Printf.printf "Creating 1D visualization...\n%!";
+                  plot_graph "1D" points clusters !chosen_colors ();
+                  buffer#insert "Visualization saved to 'graph.png'\n";
+                  auto_scroll ();
+                  graph_image#set_file "graph.png"
+                end
+                else if !current_dim == 2 then begin
+                  Printf.printf "Creating 2D visualization...\n%!";
+                  plot_graph "2D" points clusters !chosen_colors ();
+                  buffer#insert "Visualization saved to 'graph.png'\n";
+                  auto_scroll ();
+                  graph_image#set_file "graph.png"
+                end
+                else if !current_dim == 3 then begin
+                  Printf.printf "Creating 3D visualization...\n%!";
+                  plot_graph "3D" points clusters !chosen_colors ();
+                  buffer#insert "Visualization saved to 'graph.png'\n";
+                  auto_scroll ();
+                  graph_image#set_file "graph.png"
+                end
+                else begin
+                  buffer#insert
+                    "Points have dimension > 3. Visualization not available.\n";
+                  auto_scroll ()
+                end
+              with viz_error ->
+                buffer#insert
+                  ("Note: Could not create visualization: "
+                  ^ Printexc.to_string viz_error
+                  ^ "\n");
+                auto_scroll ());
+
+             (* Display cluster information *)
              List.iteri
                (fun i cluster ->
                  buffer#insert
@@ -842,9 +810,10 @@ let initialize_gui () =
                clusters
            with e ->
              Printf.printf "Error occurred: %s\n%!" (Printexc.to_string e);
-             (* Debug print *)
              buffer#insert
-               ("\nError during clustering: " ^ Printexc.to_string e ^ "\n"));
+               ("\nError during clustering: " ^ Printexc.to_string e ^ "\n");
+             (* Ensure Next button stays disabled if clustering failed *)
+             next_button#misc#set_sensitive false);
           auto_scroll ()
     in
 
