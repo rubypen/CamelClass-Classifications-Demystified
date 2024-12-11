@@ -488,7 +488,7 @@ let initialize_gui () =
 
     (* Add Buttons to Controls Box *)
     let choose_file_button =
-      GButton.button ~label:"Choose File 📁"
+      GButton.button ~label:"Choose File"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
@@ -496,7 +496,7 @@ let initialize_gui () =
     choose_file_button#misc#modify_font font;
 
     let sample_points_button =
-      GButton.button ~label:"Sample Points 📊"
+      GButton.button ~label:"Sample Points"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
@@ -504,7 +504,7 @@ let initialize_gui () =
     sample_points_button#misc#modify_font font;
 
     let random_points_button =
-      GButton.button ~label:"Random Points 🎲"
+      GButton.button ~label:"Random Points"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
@@ -1503,7 +1503,7 @@ let initialize_gui () =
     let font = GPango.font_description_from_string "Arial 20" in
 
     let start_over_button =
-      GButton.button ~label:"Start over 🔄"
+      GButton.button ~label:"Start over"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
@@ -1511,7 +1511,7 @@ let initialize_gui () =
     start_over_button#misc#modify_font font;
 
     let quit_button =
-      GButton.button ~label:"Quit ❌"
+      GButton.button ~label:"Quit"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
         ()
     in
@@ -1653,7 +1653,7 @@ let initialize_gui () =
       (* Packing the quit button without expand will ensure no extra vertical
          space *)
       let final_quit_button =
-        GButton.button ~label:"Quit ❌"
+        GButton.button ~label:"Quit"
           ~packing:(quit_box#pack ~expand:false ~fill:false)
           ()
       in
