@@ -5,6 +5,10 @@ open GroupProject.Knn
 open GMain
 open Gtk
 
+(* -------------------------------------------------------------------------- *)
+(* HELPER FUNCTIONS *)
+(* -------------------------------------------------------------------------- *)
+
 (* Random points file generator *)
 let generate () =
   Random.self_init ();
@@ -24,7 +28,7 @@ let generate () =
   done;
   BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
 
-(* Find a widget by name *)
+(* Find a widget by its name *)
 let find_widget_by_name parent name widget_type =
   let rec find_in_container container =
     let children = container#children in
@@ -51,10 +55,8 @@ let create_1d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) in
   let min_x = ref max_float in
 
-  (* Convert 1D points list to Array *)
   let x = Array.make (List.length points) 0.0 in
 
-  (* Create array from existing points and find bounds *)
   for i = 0 to List.length points - 1 do
     let coords = GroupProject.Point.get_coordinates (List.nth points i) in
     let curr_x = List.nth coords 0 in
@@ -74,7 +76,6 @@ let create_1d_graph filename points clusters colors distance_metric =
   plsfnam filename;
   plinit ();
 
-  (* Assign the custom colors to the plot *)
   Array.iteri
     (fun i (_, (r, g, b)) ->
       plscol0 (i + 1)
@@ -83,23 +84,18 @@ let create_1d_graph filename points clusters colors distance_metric =
         (int_of_float (b *. 255.)))
     colors;
 
-  (* Define a new color, white, after the custom colors *)
   plscol0 (Array.length colors + 1) 255 255 255;
-
-  (* Make axis color white *)
   plcol0 (Array.length colors + 1);
 
   let range = !max_x -. !min_x in
   plenv (!min_x -. (0.1 *. range)) (!max_x +. (0.1 *. range)) (-0.1) 0.1 0 0;
   pllab "X-axis" "" "1D Graph";
 
-  (* Plot points for each cluster *)
   List.iteri
     (fun i cluster_point ->
       let color_index = (i mod Array.length colors) + 1 in
       plcol0 color_index;
 
-      (* Filter points belonging to the current cluster *)
       let cluster_points =
         List.filter
           (fun p ->
@@ -118,11 +114,9 @@ let create_1d_graph filename points clusters colors distance_metric =
              cluster_points)
       in
 
-      (* Plot cluster points *)
       let y_fixed = Array.make (Array.length x_cluster_points) 0.0 in
       plpoin x_cluster_points y_fixed 9;
 
-      (* Plot cluster centers *)
       let center_coords = GroupProject.Point.get_coordinates cluster_point in
       let cx = List.nth center_coords 0 in
       plcol0 (Array.length colors + 1);
@@ -157,7 +151,6 @@ let create_2d_graph filename points clusters colors distance_metric =
   plsfnam filename;
   plinit ();
 
-  (* Assign the custom colors to the plot *)
   Array.iteri
     (fun i (_, (r, g, b)) ->
       plscol0 (i + 1)
@@ -166,10 +159,7 @@ let create_2d_graph filename points clusters colors distance_metric =
         (int_of_float (b *. 255.)))
     colors;
 
-  (* Define a new color, white, after the custom colors *)
   plscol0 (Array.length colors + 1) 255 255 255;
-
-  (* Make axis color white *)
   plcol0 (Array.length colors + 1);
 
   let x_range = !max_x -. !min_x in
@@ -183,7 +173,6 @@ let create_2d_graph filename points clusters colors distance_metric =
     0 0;
   pllab "X-axis" "Y-axis" "2D Graph";
 
-  (* Plot points for each cluster *)
   List.iteri
     (fun i cluster_point ->
       let color_index = (i mod Array.length colors) + 1 in
@@ -215,7 +204,6 @@ let create_2d_graph filename points clusters colors distance_metric =
 
       plpoin x_cluster_points y_cluster_points 9;
 
-      (* Plot cluster centers *)
       let center_coords = GroupProject.Point.get_coordinates cluster_point in
       let cx = List.nth center_coords 0 in
       let cy = List.nth center_coords 1 in
@@ -230,12 +218,10 @@ let create_3d_graph filename points clusters colors distance_metric =
   let max_y = ref (-.max_float) and min_y = ref max_float in
   let max_z = ref (-.max_float) and min_z = ref max_float in
 
-  (* Prepare points arrays *)
   let x = Array.make (List.length points) 0.0 in
   let y = Array.make (List.length points) 0.0 in
   let z = Array.make (List.length points) 0.0 in
 
-  (* Fill points and update bounds *)
   List.iteri
     (fun i p ->
       let coords = GroupProject.Point.get_coordinates p in
@@ -258,7 +244,6 @@ let create_3d_graph filename points clusters colors distance_metric =
   plsfnam filename;
   plinit ();
 
-  (* Assign custom colors to the plot *)
   Array.iteri
     (fun i (_, (r, g, b)) ->
       plscol0 (i + 1)
@@ -270,17 +255,14 @@ let create_3d_graph filename points clusters colors distance_metric =
   let x_range = !max_x -. !min_x in
   let y_range = !max_y -. !min_y in
   let z_range = !max_z -. !min_z in
-  (*let max_range = max x_range (max y_range z_range) in*)
+
   let scale_factor = 5.0 in
 
-  (* Define a new color, black, for the 2D axes *)
   plscol0 (Array.length colors + 1) 0 0 0;
-  (* Define a new color, white, for the 3D axes and clusters *)
   plscol0 (Array.length colors + 2) 255 255 255;
 
   plcol0 (Array.length colors + 1);
 
-  (* 3D Plot setup *)
   plenv
     (-0.15 *. x_range *. scale_factor)
     (0.15 *. x_range *. scale_factor)
@@ -301,10 +283,8 @@ let create_3d_graph filename points clusters colors distance_metric =
   plbox3 "bnstu" "X-axis" 0.0 0 "bnstu" "Y-axis" 0.0 0 "bcdmnstuv" "Z-axis" 0.0
     0;
 
-  (* Plot points *)
   plpoin3 x y z 9;
 
-  (* Plot clusters dynamically *)
   List.iteri
     (fun i cluster ->
       let color_index = (i mod Array.length colors) + 1 in
@@ -340,10 +320,8 @@ let create_3d_graph filename points clusters colors distance_metric =
              cluster_points)
       in
 
-      (* Plot cluster points *)
       plpoin3 x_cluster_points y_cluster_points z_cluster_points 9;
 
-      (* Plot cluster centers *)
       let center_coords = GroupProject.Point.get_coordinates cluster in
       let cx = List.nth center_coords 0 in
       let cy = List.nth center_coords 1 in
@@ -368,8 +346,8 @@ let create_plot_window window graph_box image_path =
 (* -------------------------------------------------------------------------- *)
 (* GUI FUNCTIONALITY *)
 (* -------------------------------------------------------------------------- *)
+
 let initialize_gui () =
-  (* Initialize the GUI *)
   let init = GMain.init () in
   ignore init;
 
@@ -676,7 +654,8 @@ let initialize_gui () =
         ~markup:
           (Printf.sprintf
              "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-              <span size='15000'>Choose up to %d colors</span>" !current_k)
+              <span size='15000'>Choose up to %d colors</span>"
+             !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
@@ -874,7 +853,8 @@ let initialize_gui () =
            let markup_text =
              Printf.sprintf
                "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-                <span size='15000'>Choose up to %d colors</span>" !current_k
+                <span size='15000'>Choose up to %d colors</span>"
+               !current_k
            in
            cluster_colors_label#set_label markup_text));
     let current_metric = ref "Euclidean" in
@@ -1296,8 +1276,8 @@ let initialize_gui () =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
-        ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
