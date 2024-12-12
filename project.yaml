@@ -23,7 +23,7 @@ title: "CamelClass: Classifications Demystified"
 # Cornell Github link.
 git-repo: "https://github.coecis.cornell.edu/ks2469/Ocaml_3110_GP"
 # Demo video.
-demo-video-url: ""
+demo-video-url: "https://www.youtube.com/watch?v=kptuiIeyVTk"
 # Project Description.
 desc: >
   Our project is an interactive K-Means Classification Visualizer. It supports
@@ -34,4 +34,4 @@ desc: >
   
   This project is available in GUI and I/O versions.
   The GUI version supports data visualization and statistics, and the I/O version 
-  supports extra k-Nearest Neighbors functionality on a new user-provided point.
+  supports an extra k-Nearest Neighbors functionality on a new user-provided point.
