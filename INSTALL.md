@@ -18,7 +18,9 @@ Install New Packages:
 if you have mac homebrew.
 
 Step 3)
-1. If you encounter path errors, Update Path:
+1. If you encounter path errors, such as the following:
+    Error: Error during linking (exit code 1)
+  ...then Update Path:
   $ export PKG_CONFIG_PATH=/opt/homebrew/Cellar/pango/1.55.0/lib/pkgconfig:/opt/homebrew/lib/pkgconfig
   export LIBRARY_PATH=/opt/homebrew/Cellar/pango/1.55.0/lib:/opt/homebrew/lib
   export DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/pango/1.55.0/lib:/opt/homebrew/lib
