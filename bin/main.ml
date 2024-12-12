@@ -9,7 +9,7 @@ open Gtk
 (* HELPER FUNCTIONS *)
 (* -------------------------------------------------------------------------- *)
 
-(* Random points file generator *)
+(** [generate] generates a file with random points *)
 let generate () =
   Random.self_init ();
   let random_a_b a b = a + Random.int b in
@@ -32,7 +32,7 @@ let generate () =
 (* WIDGET UTILITIES *)
 (* -------------------------------------------------------------------------- *)
 
-(* Find a widget by its name *)
+(** [find_widget_by_name] locates a widget according to the name *)
 let find_widget_by_name parent name widget_type =
   let rec find_in_container container =
     let children = container#children in
@@ -54,7 +54,9 @@ let find_widget_by_name parent name widget_type =
 (* -------------------------------------------------------------------------- *)
 
 type color_array = (string * (float * float * float)) array
+(** [color_array] describes the definition of a color array *)
 
+(** [create_1d_graph] outputs a file with a graph in 1D. *)
 let create_1d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) in
   let min_x = ref max_float in
@@ -129,6 +131,7 @@ let create_1d_graph filename points clusters colors distance_metric =
 
   plend ()
 
+(** [create_2d_graph] outputs a file with a graph in 2D *)
 let create_2d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) in
   let min_x = ref max_float in
@@ -217,6 +220,7 @@ let create_2d_graph filename points clusters colors distance_metric =
 
   plend ()
 
+(** [create_3d_graph] outputs a file with a graph in 3D *)
 let create_3d_graph filename points clusters colors distance_metric =
   let max_x = ref (-.max_float) and min_x = ref max_float in
   let max_y = ref (-.max_float) and min_y = ref max_float in
@@ -336,6 +340,7 @@ let create_3d_graph filename points clusters colors distance_metric =
 
   plend ()
 
+(** [plot_graph] chooses the graph function to run and runs it *)
 let plot_graph view points clusters colors distance_metric () =
   let filename = "pictures/graph.png" in
   match view with
@@ -344,6 +349,7 @@ let plot_graph view points clusters colors distance_metric () =
   | "3D" -> create_3d_graph filename points clusters colors distance_metric
   | _ -> failwith "Unsupported visualization type"
 
+(** [create_plot_window] creates a window for the plot to be shown *)
 let create_plot_window window graph_box image_path =
   GMisc.image ~file:image_path ~packing:graph_box#add ()
 
@@ -351,6 +357,8 @@ let create_plot_window window graph_box image_path =
 (* GUI FUNCTIONALITY *)
 (* -------------------------------------------------------------------------- *)
 
+(** [initialize_gui] loads in all of the GUI for our project, including the many
+    screens *)
 let initialize_gui () =
   let init = GMain.init () in
   ignore init;
@@ -417,22 +425,19 @@ let initialize_gui () =
   let rec start () =
     (* Clean existing window *)
     clean window;
-    (* Get the screen dimensions *)
+
     let screen_width = Gdk.Screen.width () in
     let screen_height = Gdk.Screen.height () in
 
-    (* Estimate/measure the total area you'd like to center *)
     let main_box_width = 600 in
     let main_box_height = 600 in
 
-    (* Compute the center coordinates *)
     let center_x = (screen_width - main_box_width) / 2 in
     let center_y = (screen_height - main_box_height) / 2 in
 
-    (* Create the fixed container *)
     let fixed = GPack.fixed ~packing:window#add () in
 
-    (* Load your background image as before *)
+    (* Load in a background image to the bakground *)
     let cwd = Sys.getcwd () in
     let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
     let pixbuf =
@@ -441,7 +446,6 @@ let initialize_gui () =
     in
     ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
 
-    (* Now create your main VBox centered using the computed coordinates *)
     let main_box =
       GPack.vbox ~spacing:20 ~border_width:20
         ~packing:(fixed#put ~x:center_x ~y:center_y)
@@ -459,7 +463,6 @@ let initialize_gui () =
     in
     intro_label#misc#show ();
 
-    (* Add Controls Box to Main VBox *)
     let controls_box =
       GPack.vbox ~width:60 ~height:300
         ~packing:(main_box#pack ~expand:true ~fill:true)
@@ -467,10 +470,9 @@ let initialize_gui () =
     in
     controls_box#set_homogeneous false;
 
-    (* Setting the Font for Buttons *)
     let font = GPango.font_description_from_string "Arial 20" in
 
-    (* Add Buttons to Controls Box *)
+    (* Add buttons for choosing the next action *)
     let choose_file_button =
       GButton.button ~label:"Choose File"
         ~packing:(controls_box#pack ~expand:true ~fill:true)
@@ -495,10 +497,8 @@ let initialize_gui () =
     random_points_button#misc#set_size_request ~height:50 ~width:200 ();
     random_points_button#misc#modify_font font;
 
-    (* Show All Widgets *)
     window#misc#show_all ();
 
-    (* Button Callbacks *)
     ignore
       (choose_file_button#connect#clicked ~callback:(fun () ->
            choice := "file";
@@ -517,7 +517,6 @@ let initialize_gui () =
     clean window;
     let vbox = GPack.vbox ~packing:window#add () in
 
-    (* Get screen dimensions *)
     let screen_width = Gdk.Screen.width () in
     let screen_height = Gdk.Screen.height () in
 
@@ -533,14 +532,12 @@ let initialize_gui () =
     in
     _divider#misc#set_size_request ~height:2 ();
 
-    (* Set a small height for the divider *)
     let _top_indent =
       GMisc.label ~text:"" ~height:10
         ~packing:(title_box#pack ~expand:false ~fill:false)
         ()
     in
 
-    (* Title Label *)
     let _project_title =
       GMisc.label ~markup:"<span size='50000'><b>CamelClass</b></span>"
         ~selectable:false ~xalign:0.5 ~yalign:0.5
@@ -548,7 +545,6 @@ let initialize_gui () =
         ()
     in
 
-    (* Subtitle Label *)
     let _project_subtitle =
       GMisc.label ~markup:"<span size='15000'>K-means Clustering</span>"
         ~selectable:false ~xalign:0.5 ~yalign:0.5
@@ -570,9 +566,6 @@ let initialize_gui () =
       GPack.vbox ~packing:main_area#add ~spacing:5 ~border_width:10 ()
     in
 
-    (* Create drawing area *)
-    (*let drawing_area = GMisc.drawing_area ~packing:vbox#pack () in let () =
-      drawing_area#misc#set_size_request ~width:600 ~height:400 () in*)
     let _logsubtitle =
       GMisc.label
         ~markup:
@@ -590,12 +583,11 @@ let initialize_gui () =
         ()
     in
 
-    (* Create controls area *)
     let controls_box = GPack.vbox ~packing:menu_area#pack ~spacing:10 () in
 
+    (* File selection section *)
     let open_file_box = GPack.hbox ~packing:controls_box#pack ~spacing:5 () in
 
-    (* File selection button *)
     let file_button =
       GButton.button ~label:"Open File" ~packing:open_file_box#pack ()
     in
@@ -603,7 +595,6 @@ let initialize_gui () =
 
     let file_label_box = GPack.vbox ~packing:open_file_box#pack ~spacing:5 () in
 
-    (* Label for "Selected File" header *)
     let _selected_file_label =
       GMisc.label
         ~markup:
@@ -614,14 +605,13 @@ let initialize_gui () =
         ()
     in
 
-    (* Label to display the selected filename *)
     let file_name_label =
       GMisc.label ~text:"None" ~xalign:0.0 ~yalign:0.0
         ~packing:(file_label_box#pack ~expand:false ~fill:false)
         ()
     in
 
-    (* K selection *)
+    (* K selection section *)
     let k_box = GPack.hbox ~packing:controls_box#pack () ~spacing:10 in
     let _ =
       GMisc.label ~markup:"<span size='15000' weight='bold'>K-Value:</span>"
@@ -638,7 +628,8 @@ let initialize_gui () =
     let current_points = ref [] in
     let current_dim = ref 0 in
     let current_k = ref 3 in
-    (* Distance metric selection *)
+
+    (* Distance metric selection section *)
     let metric_box = GPack.hbox ~packing:controls_box#pack () in
     let _ =
       GMisc.label
@@ -652,6 +643,8 @@ let initialize_gui () =
       GButton.radio_button ~group:radio_euclidean#group ~label:"Manhattan"
         ~packing:metric_box#pack ()
     in
+
+    (* Color selection section *)
     let cluster_colors_box =
       GPack.vbox ~packing:controls_box#pack ~spacing:5 ()
     in
@@ -661,15 +654,15 @@ let initialize_gui () =
         ~markup:
           (Printf.sprintf
              "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-              <span size='15000'>Choose up to %d colors</span>" !current_k)
+              <span size='15000'>Choose up to %d colors</span>"
+             !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
 
-    (* Make a square using coordinates *)
-    let polygon = [ (10, 10); (60, 10); (60, 60); (10, 60); (10, 10) ] in
+    (* Define a square *)
+    let square_dims = [ (10, 10); (60, 10); (60, 60); (10, 60); (10, 10) ] in
 
-    (* Define a color mapping for the polygons *)
     let colors =
       [|
         ("red", (1.0, 0.0, 0.0));
@@ -704,7 +697,8 @@ let initialize_gui () =
 
     (* [draw] draws the square on the canvas *)
     let draw square (name, (r, g, b)) (cr : Cairo.context) =
-      draw_square cr polygon (r, g, b);
+      draw_square cr square_dims (r, g, b);
+
       (* Check if this square is selected. If it is, add an overlay that says
          "selected"*)
       if Hashtbl.mem selected_squares name then (
@@ -734,13 +728,10 @@ let initialize_gui () =
          if Array.length !chosen_colors < k then (
            chosen_colors := Array.append !chosen_colors [| (name, color) |];
            Hashtbl.add selected_squares name ()));
-
-      (* Draw an overlay that says "selected" onto the square *)
       square#misc#queue_draw ();
       false
     in
 
-    (* Create the grid (table) *)
     let grid =
       GPack.table ~rows:2 ~columns:6 ~homogeneous:true
         ~packing:cluster_colors_box#pack ()
@@ -757,18 +748,17 @@ let initialize_gui () =
         in
         square#misc#set_size_request ~width:70 ~height:70 ();
 
-        (* Make the squares clickable *)
         square#event#add [ `BUTTON_PRESS ];
 
-        (* Make a square with the next color in the array *)
+        (* Make a square with the next color in the array, and make it
+           selectable *)
         ignore (square#misc#connect#draw ~callback:(draw square (name, color)));
-
-        (* Make the squares selectable *)
         ignore
           (square#event#connect#button_press ~callback:(fun _ ->
                square_selected name color square)))
       colors;
 
+    (* Running K-Means Button Section *)
     let _divider =
       GMisc.separator `HORIZONTAL
         ~packing:(menu_area#pack ~expand:false ~fill:true)
@@ -780,27 +770,26 @@ let initialize_gui () =
       GPack.vbox ~packing:menu_area#pack ~spacing:10 ()
     in
 
-    (* Run button *)
     let run_button =
       GButton.button ~label:"Run K-means" ~packing:run_kmeans_button_area#pack
         ()
     in
 
+    (* Graph Section *)
     let graph_box_height = int_of_float (0.6 *. float_of_int screen_height) in
     let graph_box_width = int_of_float (0.6 *. float_of_int screen_width) in
-    (* Create a box for the graph*)
+
     let graph_box = GPack.box `HORIZONTAL ~packing:plot_and_log_area#pack () in
     let () =
       graph_box#misc#set_size_request ~width:graph_box_width
         ~height:graph_box_height ()
     in
-    (* Put the PNG file in the GUI *)
     let graph_image =
       GMisc.image ~file:"pictures/no_graph.png" ~packing:graph_box#add ()
     in
     let next_button = GButton.button ~label:"Next ▶" ~packing:vbox#pack () in
 
-    (* Disable the next button initially *)
+    (* Disable the next button initially until K-Means has been run *)
     next_button#misc#set_sensitive false;
 
     let _divider =
@@ -822,10 +811,10 @@ let initialize_gui () =
         ()
     in
 
+    (* Section for messages log *)
     let scroll_view_height = int_of_float (0.4 *. float_of_int screen_height) in
     let scroll_view_width = int_of_float (0.6 *. float_of_int screen_width) in
 
-    (* Text view for messages *)
     let scrolled_window =
       GBin.scrolled_window ~hpolicy:`AUTOMATIC ~vpolicy:`AUTOMATIC
         ~packing:(log_area#pack ~expand:true ~fill:true)
@@ -836,7 +825,7 @@ let initialize_gui () =
       text_view#misc#set_size_request ~width:scroll_view_width
         ~height:scroll_view_height ()
     in
-    (* Define buffer *)
+
     let buffer = text_view#buffer in
 
     (* Auto-scroll function *)
@@ -847,26 +836,28 @@ let initialize_gui () =
           (text_view#scroll_to_iter end_iter ~within_margin:0.1 ~use_align:true
              ~xalign:0.0 ~yalign:1.0);
         buffer#place_cursor ~where:end_iter;
-        false (* Returning false removes the idle callback after execution *)
+        false
       in
       ignore (GMain.Idle.add scroll_to_bottom)
     in
+
     (* Update current_k when k_spin value changes *)
     ignore
       (k_spin#connect#value_changed ~callback:(fun () ->
            current_k := int_of_float k_spin#value;
 
-           (* Update the cluster colors label *)
+           (* Update the cluster colors label to reflect the change of k *)
            let markup_text =
              Printf.sprintf
                "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-                <span size='15000'>Choose up to %d colors</span>" !current_k
+                <span size='15000'>Choose up to %d colors</span>"
+               !current_k
            in
            cluster_colors_label#set_label markup_text));
 
     let current_metric = ref "Euclidean" in
 
-    (* Add Optimize K button *)
+    (* Optimize K button section *)
     let optimize_k_box = GPack.hbox ~packing:controls_box#pack ~spacing:10 () in
     let optimize_k_button =
       GButton.button ~label:"Optimize K" ~packing:optimize_k_box#pack ()
@@ -928,10 +919,10 @@ let initialize_gui () =
           auto_scroll ()
         end
     in
-    (* Connect the handler *)
     ignore (optimize_k_button#connect#clicked ~callback:optimize_k_handler);
 
-    (* Distance metric change handler *)
+    (* [on_metric_changed] updates the current metric to be used by the K-Means
+       model *)
     let on_metric_changed () =
       current_metric :=
         if radio_euclidean#active then (
@@ -948,7 +939,7 @@ let initialize_gui () =
     (* FILE HANDLING *)
     (* -------------------------------------------------------------------------- *)
 
-    (* File selection handler *)
+    (* [open_file] opens an existing csv file of the user's choice *)
     let open_file () =
       let dialog =
         GWindow.file_chooser_dialog ~action:`OPEN ~title:"Select CSV File"
@@ -1023,6 +1014,7 @@ let initialize_gui () =
           run_button#misc#set_sensitive false
     in
 
+    (* [open_sample_file] opens the provided sample file *)
     let open_sample_file () =
       buffer#set_text "You selected points from a sample file.\n";
       auto_scroll ();
@@ -1059,6 +1051,7 @@ let initialize_gui () =
       run_button#misc#set_sensitive true
     in
 
+    (* [open_random_file] creates a new csv file of random points and opens it*)
     let open_random_file () =
       buffer#set_text "You selected points from a random points generator.\n";
       auto_scroll ();
@@ -1096,6 +1089,8 @@ let initialize_gui () =
       run_button#misc#set_sensitive true
     in
 
+    (* Functions below to call the plotting of the graph in the respective
+       dimensional view *)
     let create_2d_graph filename (points : t list) clusters colors
         distance_metric =
       create_2d_graph filename points clusters colors distance_metric
@@ -1124,7 +1119,7 @@ let initialize_gui () =
     (* CLUSTERING LOGIC *)
     (* -------------------------------------------------------------------------- *)
 
-    (* Run k-means handler *)
+    (* Runs the K-means algorithm *)
     let run_kmeans () =
       match !current_points with
       | [] ->
@@ -1142,6 +1137,8 @@ let initialize_gui () =
              buffer#insert "Clustering completed.\n";
              auto_scroll ();
 
+             (* [select_random_colors] selects random colors from the list of
+                colors to autofill user choices *)
              let select_random_colors chosen_colors defined_colors k =
                let chosen_list = Array.to_list chosen_colors in
 
@@ -1177,7 +1174,7 @@ let initialize_gui () =
                else !chosen_colors
              in
 
-             (* Debug print *)
+             (* Run the correct graphing function according to the dimension *)
              if !current_dim == 1 then begin
                let _ =
                  plot_graph "1D" points clusters colors_to_use
@@ -1210,7 +1207,6 @@ let initialize_gui () =
                  "Only points in the 1D, 2D, and 3D spaces can be graphed. \n";
              auto_scroll ();
 
-             chosen_colors := [||];
              next_button#misc#set_sensitive true;
 
              List.iteri
@@ -1229,16 +1225,15 @@ let initialize_gui () =
           auto_scroll ()
     in
 
-    (* Connect signals *)
     if !choice == "sample" then begin
       run_button#misc#set_sensitive true;
       file_button#misc#set_sensitive false;
-      open_sample_file () (* run_button#misc#set_sensitive false *)
+      open_sample_file ()
     end
     else if !choice == "random" then begin
       run_button#misc#set_sensitive true;
       file_button#misc#set_sensitive false;
-      open_random_file () (* run_button#misc#set_sensitive false *)
+      open_random_file ()
     end
     else ignore (file_button#connect#clicked ~callback:open_file);
     ignore (radio_euclidean#connect#clicked ~callback:on_metric_changed);
@@ -1246,8 +1241,6 @@ let initialize_gui () =
     ignore (run_button#connect#clicked ~callback:run_kmeans);
     ignore (window#connect#destroy ~callback:Main.quit);
 
-    (* Initialize state *)
-    (* run_button#misc#set_sensitive false; *)
     buffer#set_text "Welcome to CamelClass K-means Clustering\n\n";
     auto_scroll ();
     ignore
@@ -1255,25 +1248,20 @@ let initialize_gui () =
            transition4 !current_k !current_points))
   and transition4 current_k current_points =
     chosen_colors := [||];
-    (* Transition 6: Show statistics *)
+    (* Transition 4: Show statistics *)
     clean window;
 
-    (* Get the screen dimensions *)
     let screen_width = Gdk.Screen.width () in
     let screen_height = Gdk.Screen.height () in
 
-    (* Estimate/measure the total area you'd like to center *)
     let main_box_width = 800 in
     let main_box_height = 850 in
 
-    (* Compute the center coordinates *)
     let center_x = (screen_width - main_box_width) / 2 in
     let center_y = (screen_height - main_box_height) / 2 in
 
-    (* Create a fixed container *)
     let fixed = GPack.fixed ~packing:window#add () in
 
-    (* Load your background image *)
     let cwd = Sys.getcwd () in
     let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
     let pixbuf =
@@ -1281,10 +1269,8 @@ let initialize_gui () =
         ~height:screen_height
     in
 
-    (* Place the background image at (0,0) *)
     ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
 
-    (* Create stats_box on top of the background *)
     let stats_box =
       GPack.vbox ~packing:(fixed#put ~x:center_x ~y:center_y) ()
     in
@@ -1293,8 +1279,8 @@ let initialize_gui () =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
-        ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>"
+        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
@@ -1364,6 +1350,8 @@ let initialize_gui () =
     in
     scrolled_window#misc#set_size_request ~width:800 ~height:400 ();
 
+    (* Show the results of the K-Means algorithm by displaying the resulting
+       clusters *)
     List.iteri
       (fun i cluster ->
         let cluster_points =
@@ -1437,6 +1425,7 @@ let initialize_gui () =
         ()
     in
 
+    (* Show the Next and Back buttons and make them look pretty with spacing *)
     let _left_spacer =
       GMisc.label ~text:"" ~packing:(button_box#pack ~expand:true ~fill:true) ()
     in
@@ -1470,7 +1459,7 @@ let initialize_gui () =
 
     window#misc#show_all ()
   and transition6 () =
-    (* Transition 8: End Screen *)
+    (* Transition 6: End Screen *)
     clean window;
 
     let screen_width = Gdk.Screen.width () in
@@ -1517,8 +1506,10 @@ let initialize_gui () =
     quit_button#misc#set_size_request ~height:70 ~width:300 ();
     quit_button#misc#modify_font font;
 
+    (* Restarts the program by allowing the user to run K-Means again *)
     let start_over () =
       choice := "file";
+      chosen_colors := [||];
       start ()
     in
 
@@ -1526,22 +1517,17 @@ let initialize_gui () =
       start ();
       clean window;
 
-      (* Get the screen dimensions *)
       let screen_width = Gdk.Screen.width () in
       let screen_height = Gdk.Screen.height () in
 
-      (* Dimensions for main area *)
       let main_box_width = 1450 in
       let main_box_height = 800 in
 
-      (* Compute center coordinates to position the controls box *)
       let center_x = (screen_width - main_box_width) / 2 in
       let center_y = (screen_height - main_box_height) / 2 in
 
-      (* Create a fixed container so we can place a background image *)
       let fixed = GPack.fixed ~packing:window#add () in
 
-      (* Load your background image *)
       let cwd = Sys.getcwd () in
       let bg_file = Filename.concat cwd "pictures/desertcamelkmeans.png" in
       let pixbuf =
@@ -1550,8 +1536,6 @@ let initialize_gui () =
       in
       ignore (GMisc.image ~pixbuf ~packing:(fixed#put ~x:0 ~y:0) ());
 
-      (* Remove explicit height/width from controls_box so it can shrink
-         naturally *)
       let controls_box =
         GPack.vbox ~spacing:5 ~border_width:20
           ~packing:(fixed#put ~x:center_x ~y:center_y)
@@ -1559,6 +1543,7 @@ let initialize_gui () =
       in
       controls_box#set_homogeneous false;
 
+      (* Define a section for the Thank You portion of our project *)
       let _thanks_title =
         GMisc.label
           ~markup:
@@ -1575,7 +1560,6 @@ let initialize_gui () =
           ()
       in
 
-      (* No fixed height/width here, let the box size to its content *)
       let thanks_box =
         GPack.hbox ~spacing:20 ~border_width:50
           ~packing:(controls_box#pack ~expand:false ~fill:false)
@@ -1598,7 +1582,7 @@ let initialize_gui () =
              ())
       in
 
-      (* Adding names of authors *)
+      (* Add the names of the project authors *)
       let picture_file = Filename.concat cwd "pictures/camel1.jpeg" in
       add_name "<span size='30000'> Keti Sulamanidze </span>" picture_file;
       let divider =
@@ -1639,18 +1623,14 @@ let initialize_gui () =
       let picture_file = Filename.concat cwd "pictures/camel5.jpeg" in
       add_name "<span size='30000'> Varvara Babii </span>" picture_file;
 
-      (* Create a small box for the quit button with minimal padding *)
       let quit_box =
         GPack.vbox ~spacing:5 ~border_width:0
           ~packing:(controls_box#pack ~expand:false ~fill:false)
           ()
       in
 
-      (* Set a nice font for the quit button *)
       let font = GPango.font_description_from_string "Arial 20" in
 
-      (* Packing the quit button without expand will ensure no extra vertical
-         space *)
       let final_quit_button =
         GButton.button ~label:"Quit"
           ~packing:(quit_box#pack ~expand:false ~fill:false)
@@ -1669,11 +1649,9 @@ let initialize_gui () =
     ignore (start_over_button#connect#clicked ~callback:start_over);
     ignore (quit_button#connect#clicked ~callback:quit)
   in
-  (* Connect signals *)
   ignore (start_button#connect#clicked ~callback:start);
   ignore (window#connect#destroy ~callback:GMain.quit);
 
-  (* Show the window *)
   window#show ();
   GMain.main ()
 

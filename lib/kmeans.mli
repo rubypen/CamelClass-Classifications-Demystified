@@ -1,6 +1,7 @@
 open Point
 
 type distance_metric = Point.t -> Point.t -> float
+(** The type of a distance metric to use. *)
 
 val check_same_dimension : Point.t list -> bool
 (** [check_same_dimension points] is whether all points in the list [points]
