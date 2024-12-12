@@ -28,6 +28,10 @@ let generate () =
   done;
   BatFile.write_lines "data/random.csv" (BatList.enum !points_lst)
 
+(* -------------------------------------------------------------------------- *)
+(* WIDGET UTILITIES *)
+(* -------------------------------------------------------------------------- *)
+
 (* Find a widget by its name *)
 let find_widget_by_name parent name widget_type =
   let rec find_in_container container =
@@ -407,6 +411,9 @@ let initialize_gui () =
     | children -> List.iter (fun widget -> widget#destroy ()) children
   in
 
+  (* -------------------------------------------------------------------------- *)
+  (* GUI TRANSITIONS *)
+  (* -------------------------------------------------------------------------- *)
   let rec start () =
     (* Clean existing window *)
     clean window;
@@ -654,8 +661,7 @@ let initialize_gui () =
         ~markup:
           (Printf.sprintf
              "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-              <span size='15000'>Choose up to %d colors</span>"
-             !current_k)
+              <span size='15000'>Choose up to %d colors</span>" !current_k)
         ~packing:cluster_colors_box#pack () ~selectable:false ~xalign:0.0
         ~yalign:0.0
     in
@@ -832,6 +838,7 @@ let initialize_gui () =
     in
     (* Define buffer *)
     let buffer = text_view#buffer in
+
     (* Auto-scroll function *)
     let auto_scroll () =
       let scroll_to_bottom () =
@@ -853,11 +860,12 @@ let initialize_gui () =
            let markup_text =
              Printf.sprintf
                "<span size='15000' weight='bold'>Cluster Colors:</span>\n\
-                <span size='15000'>Choose up to %d colors</span>"
-               !current_k
+                <span size='15000'>Choose up to %d colors</span>" !current_k
            in
            cluster_colors_label#set_label markup_text));
+
     let current_metric = ref "Euclidean" in
+
     (* Add Optimize K button *)
     let optimize_k_box = GPack.hbox ~packing:controls_box#pack ~spacing:10 () in
     let optimize_k_button =
@@ -922,6 +930,7 @@ let initialize_gui () =
     in
     (* Connect the handler *)
     ignore (optimize_k_button#connect#clicked ~callback:optimize_k_handler);
+
     (* Distance metric change handler *)
     let on_metric_changed () =
       current_metric :=
@@ -934,6 +943,10 @@ let initialize_gui () =
       buffer#insert ("\nDistance metric changed to: " ^ !current_metric ^ "\n");
       auto_scroll ()
     in
+
+    (* -------------------------------------------------------------------------- *)
+    (* FILE HANDLING *)
+    (* -------------------------------------------------------------------------- *)
 
     (* File selection handler *)
     let open_file () =
@@ -1107,6 +1120,10 @@ let initialize_gui () =
       else create_3d_graph filename points clusters colors distance_metric
     in
 
+    (* -------------------------------------------------------------------------- *)
+    (* CLUSTERING LOGIC *)
+    (* -------------------------------------------------------------------------- *)
+
     (* Run k-means handler *)
     let run_kmeans () =
       match !current_points with
@@ -1276,8 +1293,8 @@ let initialize_gui () =
       GMisc.label
         ~markup:
           "<span size='50000'><b>K-Means Cluster Statistics \n\
-          \ (Clusters are scrollable)</b></span>"
-        ~selectable:true ~xalign:0.5 ~yalign:0.0 ~height:100
+          \ (Clusters are scrollable)</b></span>" ~selectable:true ~xalign:0.5
+        ~yalign:0.0 ~height:100
         ~packing:(stats_box#pack ~expand:true ~fill:false)
         ()
     in
@@ -1671,7 +1688,7 @@ Hashtbl.add default_files "./data/test_data.csv" 1;;
 Hashtbl.add default_files "./data/test_data_2d.csv" 2;;
 Hashtbl.add default_files "./data/test_data_3d.csv" 3
 
-(** MARK: - Properties (Formatting and Display) *)
+(* MARK: - Properties (Formatting and Display) *)
 
 (** The type representing a color. *)
 type color =
@@ -1706,7 +1723,7 @@ let clr_ s c str =
   | Und -> ANSITerminal.sprintf [ Underlined; clr; ANSITerminal.on_black ] str
   | Reg -> ANSITerminal.sprintf [ clr; ANSITerminal.on_black ] str
 
-(** Properties - Welcome Message *)
+(* MARK: - Welcome Message *)
 
 (** [welcome_ascii] is the programs ASCII art banner. *)
 let welcome_ascii =
