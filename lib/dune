@@ -1,0 +1,5 @@
+(library
+ (name GroupProject)
+ (libraries csv lablgtk3 ANSITerminal lwt.unix plplot batteries)
+ (instrumentation
+  (backend bisect_ppx)))
